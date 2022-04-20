@@ -5,7 +5,9 @@ __pycache__/
 
 # C extensions
 *.so
-
+stable_baselines_al/
+.idea/
+logger/
 # Distribution / packaging
 .Python
 build/
