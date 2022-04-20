@@ -73,8 +73,8 @@ class GCAPCNFeatureExtractorNTDA(nn.Module):
         # print("Active tasks before node embedding: ",active_tasks)
         X = data['task_graph_nodes']
         X_loc = X[:, active_tasks[1:] - 1, :]
-        # distance_matrix = ((((X_loc[:, :, None] - X_loc[:, None]) ** 2).sum(-1)) ** .5)
-        distance_matrix = torch.cdist(X_loc, X_loc)
+        distance_matrix = ((((X_loc[:, :, None] - X_loc[:, None]) ** 2).sum(-1)) ** .5)
+        # distance_matrix = torch.cdist(X_loc, X_loc)
         num_samples, num_locations, _ = X_loc.size()
         # A = ((1 / distance_matrix) * (torch.eye(num_locations, device=distance_matrix.device).expand(
         #     (num_samples, num_locations, num_locations)) - 1).to(torch.bool).to(torch.float))

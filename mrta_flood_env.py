@@ -31,6 +31,7 @@ import ot
 #   Introduce communication uncertainties
 #   BiGraph matching based decoding
 #   Move TD abstraction to policy file
+#   Fix the memory issue
 
 
 # Create Environment
