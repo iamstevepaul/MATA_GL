@@ -105,12 +105,12 @@ class MRTAENV(Env):
                 #                                                            self.agent_taking_decision, :].reshape(1,
                 #                                                                                                   2).shape),
                 # topo_laplacian=Box(low=0, high=100000, shape=(n_locations-1,n_locations-1)),
-                task_graph_nodes=Box(low=0, high=1, shape=(n_locations-1,4)),
-                # task_graph_adjacency=Box(low=0, high=1, shape=(n_locations-1, n_locations-1)),
+                task_graph_nodes=Box(low=0, high=1, shape=(n_locations-1,5)),
+                task_graph_adjacency=Box(low=0, high=1, shape=(n_locations-1, n_locations-1)),
                 agents_graph_nodes=Box(low=0, high=1, shape=(n_agents, 5)),
-                # agents_graph_adjacency=Box(low=0, high=1, shape=(n_agents, n_agents)),
+                agents_graph_adjacency=Box(low=0, high=1, shape=(n_agents, n_agents)),
                 nodes_visited=Box(low=0, high=1, shape=self.nodes_visited.shape),
-                agent_taking_decision=Discrete(n_agents),
+                agent_taking_decision=Box(low=0, high=n_agents, shape=(1,), dtype=int),
                 first_dec = MultiBinary(1)
             ))
 
@@ -146,9 +146,9 @@ class MRTAENV(Env):
             #                                                                             2),
             # 'topo_laplacian':self.topo_laplacian,
             'task_graph_nodes': task_graph_nodes,
-            # 'task_graph_adjacency':task_graph_adjacency,
+            'task_graph_adjacency':task_graph_adjacency,
             'agents_graph_nodes':agents_graph_nodes,
-            # 'agents_graph_adjacency':agents_graph_adjacency,
+            'agents_graph_adjacency':agents_graph_adjacency,
             'nodes_visited':self.nodes_visited,
             'first_dec': self.first_dec,
             'agent_taking_decision': self.agent_taking_decision
@@ -218,7 +218,7 @@ class MRTAENV(Env):
     def step(self, action):
         # print("Time: ", self.time)
         # print("New action taken from the available list: ", action)
-        action = self.active_tasks[action]
+        # action = self.active_tasks[action]
         # print("Actual action: ", action)
         self.episode_start = 0
         self.first_dec = False
@@ -280,7 +280,7 @@ class MRTAENV(Env):
         # print("Active tasks before update: ", self.active_tasks)
         self.active_tasks = ((self.nodes_visited == 0).nonzero())[0]
         # print("Active tasks after update: ", self.active_tasks)
-
+        # print(sum(self.nodes_visited))
         if sum(self.nodes_visited) == self.n_locations - 1:
             # reward = 1/(self.total_distance_travelled + 10e-5) - (self.total_length - self.n_locations+1)/self.n_locations
             # 1/(self.total_distance_travelled**2+ 10e-5)## change this with the distance travelled
@@ -347,9 +347,10 @@ class MRTAENV(Env):
         locations = torch.tensor(self.locations)
         time_deadlines = (self.time_deadlines.T)
         location_demand = (self.location_demand.T)
-        node_properties = torch.cat((locations, time_deadlines, location_demand), dim=1)
+        deadlines_passed = self.deadline_passed.T
+        node_properties = torch.cat((locations, time_deadlines, location_demand, deadlines_passed), dim=1)
         node_properties = node_properties[1:, :] # excluding the depot
-        node_properties = node_properties/node_properties.max(dim=0).values # normalizing
+        node_properties[:, 0:4] = node_properties[:, 0:4]/node_properties[:, 0:4].max(dim=0).values # normalizing all except deadline_passed
         distance_matrix = torch.cdist(node_properties, node_properties)
         adjacency_matrix = 1/(1+torch.cdist(node_properties, node_properties))
         adjacency_matrix = adjacency_matrix*(distance_matrix>0).to(torch.float32) # setting diagonal elements as 0

@@ -69,20 +69,20 @@ class GCAPCNFeatureExtractorNTDA(nn.Module):
         self.activ = nn.Tanh()
 
     def forward(self, data, mask=None):
-        active_tasks = ((data['nodes_visited'] == 0).nonzero())[:, 1]
+        # active_tasks = ((data['nodes_visited'] == 0).nonzero())[:, 1]
         # print("Active tasks before node embedding: ",active_tasks)
         X = data['task_graph_nodes']
-        X_loc = X[:, active_tasks[1:] - 1, :]
-        distance_matrix = ((((X_loc[:, :, None] - X_loc[:, None]) ** 2).sum(-1)) ** .5)
+        X_loc = X
+        # distance_matrix = ((((X_loc[:, :, None] - X_loc[:, None]) ** 2).sum(-1)) ** .5)
         # distance_matrix = torch.cdist(X_loc, X_loc)
         num_samples, num_locations, _ = X_loc.size()
         # A = ((1 / distance_matrix) * (torch.eye(num_locations, device=distance_matrix.device).expand(
         #     (num_samples, num_locations, num_locations)) - 1).to(torch.bool).to(torch.float))
         # A[A != A] = 0
-        A = 1 / (1 + distance_matrix)
-        A = A * (distance_matrix > 0).to(torch.float32)
+        # A = 1 / (1 + distance_matrix)
+        A = data['task_graph_adjacency']
         # A = data['task_graph_adjacency']
-        D = torch.mul(torch.eye(num_locations, device=distance_matrix.device).expand((num_samples, num_locations, num_locations)),
+        D = torch.mul(torch.eye(num_locations, device=X.device).expand((num_samples, num_locations, num_locations)),
                       (A.sum(-1) - 1)[:, None].expand((num_samples, num_locations, num_locations)))
 
 

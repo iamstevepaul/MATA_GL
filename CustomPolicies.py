@@ -1,6 +1,8 @@
 """
 Author: Steve Paul 
 Date: 1/18/22 """
+import torch
+
 from stable_baselines_al.common.policies import BasePolicy
 import torch as th
 import gym
@@ -87,7 +89,7 @@ class ActorCriticGCAPSPolicy(BasePolicy):
         optimizer_class: Type[th.optim.Optimizer] = th.optim.Adam,
         optimizer_kwargs: Optional[Dict[str, Any]] = None,
         features_dim = 64,
-        node_dim=4
+        node_dim=5
                  ):
         super(ActorCriticGCAPSPolicy, self).__init__(observation_space,
             action_space,
@@ -184,10 +186,10 @@ class ActorCriticGCAPSPolicy(BasePolicy):
         ## From the logits compute the probabilities by clipping, masking and softmax
         # if self.tanh_clipping > 0:
         #     logits = th.tanh(logits) * self.tanh_clipping
-        # if self.mask_logits:
-        #     logits[th.tensor(mask[:,:,:].reshape(logits.shape), dtype=th.bool)] = -math.inf
-        if mask[0, 0,0] == 1:
-            logits[:,:,0] = -math.inf
+        if self.mask_logits:
+            logits[th.tensor(mask[:,:,:].reshape(logits.shape), dtype=th.bool)] = -math.inf
+        # if mask[0, 0,0] == 1:
+        #     logits[:,:,0] = -math.inf
             # print("depot masked")
         # print("Shape of logits: ", logits.shape)
         return logits, glimpse.squeeze(-2)
@@ -237,7 +239,7 @@ class ActorCriticGCAPSPolicy(BasePolicy):
         features, graph_embed = self.extract_features(obs)
 
         latent_pi, values = self.context_extractor(graph_embed, obs)
-        mean_actions = self.decode_action_probabilites(latent_pi,graph_embed, features, obs)[0,:]
+        mean_actions = self.decode_action_probabilites(latent_pi,graph_embed, features, obs)[:,0,:]
         # mean_actions = self.action_net(latent_pi)
         latent_sde = latent_pi
         # if self.sde_features_extractor is not None:
@@ -264,11 +266,12 @@ class ActorCriticGCAPSPolicy(BasePolicy):
         return distribution, values
 
     def context_extractor(self, graph_embed, observations):
-        agent_taking_decision = observations['agent_taking_decision']
+        agent_taking_decision = observations['agent_taking_decision'][:,0].to(torch.int64)
+        n_data = agent_taking_decision.shape[0]
         context = graph_embed[:, None, :] \
                + \
                   self.full_context_nn(
-                      th.cat((self.agent_decision_context(observations['agents_graph_nodes'][:, agent_taking_decision, :]),
+                      th.cat((self.agent_decision_context(observations['agents_graph_nodes'][torch.arange(0,n_data), agent_taking_decision, :][:,None,:]),
                               self.agent_context(observations['agents_graph_nodes']).sum(1)[:,None,:]), -1))
         return context, self.value_net(context)
         # return context, self.value_net(th.cat((self.agent_decision_context(observations['agent_taking_decision_coordinates']),
