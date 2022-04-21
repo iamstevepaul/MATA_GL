@@ -241,13 +241,13 @@ model = PPO(
     gamma=1.00,
     verbose=1,
     n_epochs=100,
-    batch_size=5000,
+    batch_size=10000,
     tensorboard_log="logger/",
     # create_eval_env=True,
     n_steps=20000,
-    learning_rate=0.00001,
+    learning_rate=0.000001,
     policy_kwargs = policy_kwargs,
-    ent_coef=0.1,
+    ent_coef=0.01,
     vf_coef=0.5
 )
 #

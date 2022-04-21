@@ -88,7 +88,7 @@ class ActorCriticGCAPSPolicy(BasePolicy):
         normalize_images: bool = True,
         optimizer_class: Type[th.optim.Optimizer] = th.optim.Adam,
         optimizer_kwargs: Optional[Dict[str, Any]] = None,
-        features_dim = 64,
+        features_dim = 128,
         node_dim=5
                  ):
         super(ActorCriticGCAPSPolicy, self).__init__(observation_space,

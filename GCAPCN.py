@@ -47,7 +47,7 @@ class GCAPCNFeatureExtractorNTDA(nn.Module):
     def __init__(self,
                  n_layers=2,
                  n_dim=128,
-                 n_p=1,
+                 n_p=2,
                  node_dim=2,
                  n_K=2
                  ):
@@ -61,6 +61,7 @@ class GCAPCNFeatureExtractorNTDA(nn.Module):
         self.init_embed_depot = nn.Linear(2, n_dim)
 
         self.W_L_1_G1 = nn.Linear(n_dim * (n_K + 1) * n_p, n_dim)
+        self.W_L_1_G2 = nn.Linear(n_dim * (n_K + 1) * n_p, n_dim)
 
         self.normalization_1 = nn.BatchNorm1d(n_dim * n_p)
 
@@ -92,7 +93,7 @@ class GCAPCNFeatureExtractorNTDA(nn.Module):
 
         # p = 3
         F0 = self.init_embed(X_loc)
-
+        F0_squared = torch.mul(F0[:, :, :], F0[:, :, :])
         # K = 3
         L = D - A
         L_squared = torch.matmul(L, L)
@@ -104,9 +105,15 @@ class GCAPCNFeatureExtractorNTDA(nn.Module):
                                           ),
                                          -1))
 
+        g_L1_2 = self.W_L_1_G2(torch.cat((F0_squared[:, :, :],
+                                          torch.matmul(L, F0_squared)[:, :, :],
+                                          torch.matmul(L_squared, F0_squared)[:, :, :]
+                                          ),
+                                         -1))
 
-        F1 = g_L1_1#torch.cat((g_L1_1), -1)
-        F1 = self.activ(F1) #+ F0
+
+        F1 = torch.cat((g_L1_1, g_L1_2), -1)
+        F1 = self.activ(F1) + F0 # skip connection
         # F1 = self.normalization_1(F1)
 
         F_final = self.activ(self.W_F(F1))
