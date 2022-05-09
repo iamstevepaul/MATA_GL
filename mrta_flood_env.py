@@ -325,7 +325,7 @@ class MRTAENV(Env):
             if unreachbles[0].shape[0] != 0:
                 mask[unreachbles[1], 0] = 1
             mask = np.logical_or(mask, (self.deadline_passed.T).numpy()).astype(mask.dtype)
-            if mask[1:,0].prod() == 1: # if no other feassible locations, then go to depot
+            if mask[1:,0].prod() == 1: # if no other feasible locations, then go to depot
                 mask[0,0] = 0
 
 
@@ -401,7 +401,7 @@ class MRTAENV(Env):
         self.agents_current_range = torch.ones((1, self.n_agents), dtype=torch.float32) * self.max_range
         self.agents_current_payload = torch.ones((1, self.n_agents), dtype=torch.float32) * self.max_capacity
         self.time_deadlines = (torch.tensor(np.random.random((1, self.n_locations))) * .3 + .7) * 200
-        self.time_deadlines[0, 0] = 1000000
+        self.time_deadlines[0, 0] = 1000000 # large number for depot,
         self.location_demand = torch.ones((1, self.n_locations), dtype=torch.float32)
         self.task_done = torch.zeros((1, self.n_locations), dtype=torch.float32)
         self.deadline_passed = torch.zeros((1, self.n_locations), dtype=torch.float32)
