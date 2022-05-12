@@ -288,7 +288,8 @@ class MRTAENV(Env):
         self.agents_destination_coordinates[agent_taking_decision] = self.locations[action].copy()
         self.agents_distance_to_destination[agent_taking_decision] = travel_distance
         self.agents_next_decision_time[agent_taking_decision] = self.time + travel_distance / self.agent_speed
-        self.render(action)
+        if self.display:
+            self.render(action)
         ## finding the agent which takes the next decision
         self.agent_taking_decision = np.argmin(self.agents_next_decision_time)
         self.current_location_id = self.agents_next_location[self.agent_taking_decision][0].copy()
