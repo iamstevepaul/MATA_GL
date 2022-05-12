@@ -210,7 +210,9 @@ class Normalization(nn.Module):
 
 env = DummyVecEnv([lambda: MRTAENV(
         n_locations = 41,
-        n_agents = 6
+        n_agents = 6,
+        enable_dynamic_tasks=True,
+        display = False
 )])
 
 # n_envs = 4
