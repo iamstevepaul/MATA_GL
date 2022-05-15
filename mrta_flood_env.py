@@ -131,7 +131,7 @@ class MRTAENV(Env):
                 nodes_visited=Box(low=0, high=1, shape=self.nodes_visited.shape),
                 agent_taking_decision=Box(low=0, high=n_agents, shape=(1,), dtype=int),
                 first_dec = MultiBinary(1),
-                available_tasks=Box(low=0, high=1, shape=self.available_tasks.shape)
+                # available_tasks=Box(low=0, high=1, shape=self.available_tasks.shape)
             ))
 
 
@@ -172,7 +172,7 @@ class MRTAENV(Env):
             'nodes_visited':self.nodes_visited,
             'first_dec': self.first_dec,
             'agent_taking_decision': self.agent_taking_decision,
-            'available_tasks':self.available_tasks
+            # 'available_tasks':self.available_tasks
         }
 
         return state
@@ -205,7 +205,7 @@ class MRTAENV(Env):
         adj_array = adj.toarray().astype(np.float32)
         var_laplacian = self.var_preprocess(adj=adj, r=2).toarray()
 
-        secondorder_subgraph = k_th_order_weighted_subgraph(adj_mat=adj_array, w_adj_mat=distance_matrix, k=3)
+        secondorder_subgraph = k_th_order_weighted_subgraph(adj_mat=adj_array, w_adj_mat=distance_matrix, k=2)
 
         reg_dgms = list()
         for i in range(len(secondorder_subgraph)):
