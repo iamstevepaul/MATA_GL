@@ -36,6 +36,7 @@ import ot
 #   Visualization
 #   Continuous reward
 #   Current location id is changing in a step due to some weird reason, need to check this - done
+#   normalize the node properties - done
 
 
 # Create Environment
@@ -52,7 +53,8 @@ class MRTAENV(Env):
                  max_range=4,
                  enable_dynamic_tasks = False,
                  n_initial_tasks = 30,
-                 display = False
+                 display = False,
+                 enable_topological_features = False
                  ):
         # Action will be choosing the next task. (Can be a task that is alraedy done)
         # It would be great if we can force the agent to choose not-done task
@@ -89,7 +91,7 @@ class MRTAENV(Env):
 
         self.total_reward = 0.0
         self.total_length = 0
-        self.first_dec = True
+        # self.first_dec = True
 
         self.max_capacity = max_capacity
         self.max_range = max_range
@@ -112,35 +114,57 @@ class MRTAENV(Env):
         self.time_start = self.time_deadlines*(torch.rand((n_locations,1))*.5).T
         self.time_start[0,0:self.n_initial_tasks] = 0
         self.display = display
+        self.enable_topological_features = enable_topological_features
 
-
-        self.observation_space = Dict(
-            dict(
-                # location=Box(low=0, high=1, shape=self.locations.shape),
-                depot=Box(low=0, high=1, shape=(1, 2)),
-                mask=Box(low=0, high=1, shape=self.nodes_visited.shape),
-                # agents_destination_coordinates=Box(low=0, high=1, shape=self.agents_destination_coordinates.shape),
-                # agent_taking_decision_coordinates=Box(low=0, high=1, shape=self.agents_destination_coordinates[
-                #                                                            self.agent_taking_decision, :].reshape(1,
-                #                                                                                                   2).shape),
-                # topo_laplacian=Box(low=0, high=100000, shape=(n_locations-1,n_locations-1)),
-                task_graph_nodes=Box(low=0, high=1, shape=(n_locations-1,5)),
-                task_graph_adjacency=Box(low=0, high=1, shape=(n_locations-1, n_locations-1)),
-                agents_graph_nodes=Box(low=0, high=1, shape=(n_agents, 5)),
-                agents_graph_adjacency=Box(low=0, high=1, shape=(n_agents, n_agents)),
-                nodes_visited=Box(low=0, high=1, shape=self.nodes_visited.shape),
-                agent_taking_decision=Box(low=0, high=n_agents, shape=(1,), dtype=int),
-                first_dec = MultiBinary(1),
-                # available_tasks=Box(low=0, high=1, shape=self.available_tasks.shape)
-            ))
+        if self.enable_topological_features:
+            self.observation_space = Dict(
+                dict(
+                    # location=Box(low=0, high=1, shape=self.locations.shape),
+                    depot=Box(low=0, high=1, shape=(1, 2)),
+                    mask=Box(low=0, high=1, shape=self.nodes_visited.shape),
+                    # agents_destination_coordinates=Box(low=0, high=1, shape=self.agents_destination_coordinates.shape),
+                    # agent_taking_decision_coordinates=Box(low=0, high=1, shape=self.agents_destination_coordinates[
+                    #                                                            self.agent_taking_decision, :].reshape(1,
+                    #                                                                                                   2).shape),
+                    topo_laplacian=Box(low=0, high=1, shape=(n_locations-1,n_locations-1)),
+                    task_graph_nodes=Box(low=0, high=1, shape=(n_locations - 1, 5)),
+                    # task_graph_adjacency=Box(low=0, high=1, shape=(n_locations - 1, n_locations - 1)),
+                    agents_graph_nodes=Box(low=0, high=1, shape=(n_agents, 5)),
+                    # agents_graph_adjacency=Box(low=0, high=1, shape=(n_agents, n_agents)),
+                    # nodes_visited=Box(low=0, high=1, shape=self.nodes_visited.shape),
+                    agent_taking_decision=Box(low=0, high=n_agents, shape=(1,), dtype=int),
+                    # first_dec=MultiBinary(1),
+                    # available_tasks=Box(low=0, high=1, shape=self.available_tasks.shape)
+                ))
+            self.topo_laplacian = None
+            state = self.get_encoded_state()
+            topo_laplacian = self.get_topo_laplacian(state)
+            state["topo_laplacian"] = topo_laplacian
+            self.topo_laplacian = topo_laplacian
+        else:
+            self.observation_space = Dict(
+                dict(
+                    # location=Box(low=0, high=1, shape=self.locations.shape),
+                    depot=Box(low=0, high=1, shape=(1, 2)),
+                    mask=Box(low=0, high=1, shape=self.nodes_visited.shape),
+                    # agents_destination_coordinates=Box(low=0, high=1, shape=self.agents_destination_coordinates.shape),
+                    # agent_taking_decision_coordinates=Box(low=0, high=1, shape=self.agents_destination_coordinates[
+                    #                                                            self.agent_taking_decision, :].reshape(1,
+                    #                                                                                                   2).shape),
+                    # topo_laplacian=Box(low=0, high=100000, shape=(n_locations-1,n_locations-1)),
+                    task_graph_nodes=Box(low=0, high=1, shape=(n_locations-1,5)),
+                    task_graph_adjacency=Box(low=0, high=1, shape=(n_locations-1, n_locations-1)),
+                    agents_graph_nodes=Box(low=0, high=1, shape=(n_agents, 5)),
+                    # agents_graph_adjacency=Box(low=0, high=1, shape=(n_agents, n_agents)),
+                    # nodes_visited=Box(low=0, high=1, shape=self.nodes_visited.shape),
+                    agent_taking_decision=Box(low=0, high=n_agents, shape=(1,), dtype=int),
+                    # first_dec = MultiBinary(1),
+                    # available_tasks=Box(low=0, high=1, shape=self.available_tasks.shape)
+                ))
 
 
         self.distance = 0.0
-        self.topo_laplacian = None
-        # state = self.get_encoded_state()
-        # topo_laplacian = self.get_topo_laplacian(state)
-        # state["topo_laplacian"] = topo_laplacian
-        # self.topo_laplacian = topo_laplacian
+
 
 
         self.done = False
@@ -156,25 +180,44 @@ class MRTAENV(Env):
         mask = self.get_mask()
         task_graph_nodes, task_graph_adjacency = self.generate_task_graph()
         agents_graph_nodes, agents_graph_adjacency = self.generate_agents_graph()
-        state = {
-            # 'location': self.locations,
-            'depot': self.depot.reshape(1, 2),
-            'mask': mask,
-            # 'agents_destination_coordinates': self.agents_destination_coordinates,
-            # 'agent_taking_decision_coordinates': self.agents_destination_coordinates[
-            #                                      self.agent_taking_decision, :].reshape(1,
-            #                                                                             2),
-            # 'topo_laplacian':self.topo_laplacian,
-            'task_graph_nodes': task_graph_nodes,
-            'task_graph_adjacency':task_graph_adjacency,
-            'agents_graph_nodes':agents_graph_nodes,
-            'agents_graph_adjacency':agents_graph_adjacency,
-            'nodes_visited':self.nodes_visited,
-            'first_dec': self.first_dec,
-            'agent_taking_decision': self.agent_taking_decision,
-            # 'available_tasks':self.available_tasks
-        }
-
+        if self.enable_topological_features:
+            state = {
+                # 'location': self.locations,
+                'depot': self.depot.reshape(1, 2),
+                'mask': mask,
+                # 'agents_destination_coordinates': self.agents_destination_coordinates,
+                # 'agent_taking_decision_coordinates': self.agents_destination_coordinates[
+                #                                      self.agent_taking_decision, :].reshape(1,
+                #                                                                             2),
+                'task_graph_nodes': task_graph_nodes,
+                # 'task_graph_adjacency':task_graph_adjacency,
+                'topo_laplacian': self.topo_laplacian,
+                'agents_graph_nodes':agents_graph_nodes,
+                # 'agents_graph_adjacency':agents_graph_adjacency,
+                # 'nodes_visited':self.nodes_visited,
+                # 'first_dec': self.first_dec,
+                'agent_taking_decision': self.agent_taking_decision,
+                # 'available_tasks':self.available_tasks
+            }
+            # topo_laplacian = self.get_topo_laplacian(state)
+        else:
+            state = {
+                # 'location': self.locations,
+                'depot': self.depot.reshape(1, 2),
+                'mask': mask,
+                # 'agents_destination_coordinates': self.agents_destination_coordinates,
+                # 'agent_taking_decision_coordinates': self.agents_destination_coordinates[
+                #                                      self.agent_taking_decision, :].reshape(1,
+                #                                                                             2),
+                'task_graph_nodes': task_graph_nodes,
+                'task_graph_adjacency':task_graph_adjacency,
+                'agents_graph_nodes': agents_graph_nodes,
+                # 'agents_graph_adjacency': agents_graph_adjacency,
+                # 'nodes_visited': self.nodes_visited,
+                # 'first_dec': self.first_dec,
+                'agent_taking_decision': self.agent_taking_decision,
+                # 'available_tasks':self.available_tasks
+            }
         return state
 
     def var_preprocess(self, adj, r):
@@ -187,13 +230,16 @@ class MRTAENV(Env):
         return adj_normalized
 
     def get_topo_laplacian(self, data):
-        active_tasks = ((data['nodes_visited'] == 0).nonzero())[0]
+        # active_tasks = ((data['nodes_visited'] == 0).nonzero())[0]
         X_loc = (data['task_graph_nodes'].numpy())[None,:]
-        X_loc = X_loc[:, active_tasks[1:] - 1, :]
+        # X_loc = X_loc[:, active_tasks[1:] - 1, :]
         # distance_matrix = ((((X_loc[:, :, None] - X_loc[:, None]) ** 2).sum(-1)) ** .5)[0]
         distance_matrix = torch.cdist(torch.tensor(X_loc), torch.tensor(X_loc),p=2)[0]
 
         adj_ = np.float32(distance_matrix < 0.3)
+
+        adj_ = adj_ * (self.available_tasks[1:, :].T).numpy()
+        adj_ = adj_ * (self.available_tasks[1:, :]).numpy()
 
         dt = defaultdict(list)
         for i in range(adj_.shape[0]):
@@ -241,8 +287,7 @@ class MRTAENV(Env):
         # print("New action taken from the available list: ", action)
         # action = self.active_tasks[action]
         # print("Actual action: ", action)
-        self.episode_start = 0
-        self.first_dec = False
+        # self.first_dec = False
         # print(self.agent_taking_decision, action)
         agent_taking_decision = self.agent_taking_decision  # id of the agent taking action
         current_location_id = self.current_location_id  # current location id of the robot taking decision
@@ -266,7 +311,7 @@ class MRTAENV(Env):
             self.agents_distance_travelled[agent_taking_decision] += travel_distance
             self.agents_current_payload[0, agent_taking_decision] -= self.location_demand[0, action].item()
 
-            # update the the status of the node_visited that was chosen
+            # update the  status of the node_visited that was chosen
             self.nodes_visited[action] = 1
             if self.time_deadlines[0, action] < torch.tensor(self.time):
                 self.deadline_passed[0, action] = 1
@@ -383,7 +428,7 @@ class MRTAENV(Env):
         adjacency_matrix = 1/(1+torch.cdist(node_properties, node_properties))
         adjacency_matrix = adjacency_matrix*(distance_matrix>0).to(torch.float32) # setting diagonal elements as 0
         node_properties = node_properties[:,:]*self.available_tasks[1:,:] # masking the unavailable tasks
-        adjacency_matrix = adjacency_matrix*self.available_tasks[1:,:].T
+        adjacency_matrix = adjacency_matrix*(self.available_tasks[1:,:].T)
         adjacency_matrix = adjacency_matrix*self.available_tasks[1:,:]
         return node_properties, adjacency_matrix
 
@@ -491,7 +536,7 @@ class MRTAENV(Env):
         self.agents_destination_coordinates = np.ones((self.n_agents, 1)) * self.depot
         self.total_reward = 0.0
         self.total_length = 0
-        self.first_dec = True
+        # self.first_dec = True
         self.agents_current_range = torch.ones((1, self.n_agents), dtype=torch.float32) * self.max_range
         self.agents_current_payload = torch.ones((1, self.n_agents), dtype=torch.float32) * self.max_capacity
         self.time_deadlines = (torch.tensor(np.random.random((1, self.n_locations))) * .3 + .7) * 200
@@ -512,12 +557,13 @@ class MRTAENV(Env):
         self.available_tasks[0: n_initial_tasks, 0] = 1 # set the initial tasks available
         self.time_start = self.time_deadlines*(torch.rand((self.n_locations,1))*.5).T
         self.time_start[0,0:self.n_initial_tasks] = 0
-
-        self.topo_laplacian = None
         state = self.get_encoded_state()
-        # topo_laplacian = self.get_topo_laplacian(state)
-        # state["topo_laplacian"] = topo_laplacian
-        # self.topo_laplacian = topo_laplacian
+        if self.enable_topological_features:
+            self.topo_laplacian = None
+
+            topo_laplacian = self.get_topo_laplacian(state)
+            state["topo_laplacian"] = topo_laplacian
+            self.topo_laplacian = topo_laplacian
         return state
         # Reset to depot location
 

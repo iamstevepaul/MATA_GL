@@ -152,7 +152,6 @@ class GCAPCNFeatureExtractor(nn.Module):
         self.normalization_1 = nn.BatchNorm1d(features_dim * n_p)
 
         self.W_F = nn.Linear(features_dim * n_p, features_dim)
-        self.full_context_nn = torch.nn.Linear(11+10+3+2, features_dim)
         self.agent_decision_context = torch.nn.Linear(2, features_dim)
         self.agent_context = torch.nn.Linear(2, features_dim)
         self.agent_mask_encoding = torch.nn.Linear(11, features_dim)
@@ -160,10 +159,10 @@ class GCAPCNFeatureExtractor(nn.Module):
         self.activ = nn.Tanh()
 
     def forward(self, data, mask=None):
-        active_tasks = ((data['nodes_visited'] == 0).nonzero())[:,1]
+        # active_tasks = ((data['nodes_visited'] == 0).nonzero())[:,1]
 
         X = data['task_graph_nodes']
-        X = X[:,active_tasks[1:]-1,:]
+        # X = X[:,active_tasks[1:]-1,:]
         # distance_matrix = ((((X[:, :, None] - X[:, None]) ** 2).sum(-1)) ** .5)[0]
 
 
@@ -197,15 +196,7 @@ class GCAPCNFeatureExtractor(nn.Module):
 
         init_depot_embed = self.init_embed_depot(data['depot'])[:]
         h = torch.cat((init_depot_embed, F_final), 1)
-
-        # context = self.full_context_nn(
-        #               torch.cat((h.mean(dim=2)[:, None, :], data['agent_taking_decision_coordinates'],
-        #                       self.agent_context(data['agents_destination_coordinates']).sum(2)[:, None, :],
-        #                         data['mask'].permute(0,2,1)),
-        #                      -1))
-        # mask_shape = data['mask'].shape
-        # if data["first_dec"][0,0] != 1:
-        #     h = h.detach()
+        # print("Shape of the node embeddings: ", h.shape)
         return (
             h,  # (batch_size, graph_size, embed_dim)
             h.mean(dim=1),  # average to get embedding of graph, (batch_size, embed_dim)
