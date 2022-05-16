@@ -66,7 +66,7 @@ env = DummyVecEnv([lambda: MRTAENV(
         n_agents = 6,
         enable_dynamic_tasks=False,
         display = False,
-        enable_topological_features = True
+        enable_topological_features = False
 )])
 
 # n_envs = 4

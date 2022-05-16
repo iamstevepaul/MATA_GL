@@ -104,7 +104,7 @@ class ActorCriticGCAPSPolicy(BasePolicy):
 
         value_net_net = [th.nn.Linear(n_dim, n_dim, bias=False),th.nn.Linear(n_dim, 1, bias=False)]
         self.value_net = th.nn.Sequential(*value_net_net)
-        self.features_extractor = GCAPCNFeatureExtractor(node_dim=node_dim,features_dim=features_dim)
+        self.features_extractor = SimpleNN(node_dim=node_dim,n_dim=features_dim)
         self.agent_decision_context = th.nn.Linear(5,n_dim)
         self.agent_context = th.nn.Linear(5,n_dim)
         self.full_context_nn = th.nn.Linear(2*n_dim, n_dim)

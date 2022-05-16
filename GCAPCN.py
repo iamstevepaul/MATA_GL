@@ -21,11 +21,12 @@ class SimpleNN(nn.Module):
         self.n_K = n_K
         self.node_dim = node_dim
         self.init_embed = nn.Linear(node_dim, n_dim * n_p)
+        self.init_embed_depot = nn.Linear(2, n_dim)
 
 
     def forward(self, data, mask=None):
 
-        X = data['location'][:,1:,:]
+        X = data['task_graph_nodes']
         # X = torch.cat((data['loc'], data['deadline']), -1)
 
         # Layer 1
@@ -36,7 +37,9 @@ class SimpleNN(nn.Module):
 
 
         # init_depot_embed = self.init_embed_depot(data['depot'])[:]
-        h = F0#torch.cat((init_depot_embed, F_final), 1)
+        init_depot_embed = self.init_embed_depot(data['depot'])[:]
+        h = torch.cat((init_depot_embed, F0), 1)
+        # print("Shape of the node embeddings: ", h.shape)
         return (
             h,  # (batch_size, graph_size, embed_dim)
             h.mean(dim=1),  # average to get embedding of graph, (batch_size, embed_dim)
