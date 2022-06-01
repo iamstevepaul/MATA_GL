@@ -163,13 +163,13 @@ class OnPolicyAlgorithm(BaseAlgorithm):
             if self.use_sde and self.sde_sample_freq > 0 and n_steps % self.sde_sample_freq == 0:
                 # Sample a new noise matrix
                 self.policy.reset_noise(env.num_envs)
-
+            st2 = time.time()
             with th.no_grad():
                 # Convert to pytorch tensor or to TensorDict
                 obs_tensor = obs_as_tensor(self._last_obs, self.device)
                 actions, values, log_probs = self.policy.forward(obs_tensor)
             actions = actions.cpu().numpy()
-
+            endt2 = time.time() - st2
             # Rescale and perform action
             clipped_actions = actions
             # Clip the actions to avoid out of bound error

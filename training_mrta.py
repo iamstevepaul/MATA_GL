@@ -103,7 +103,7 @@ model = PPO(
     n_steps=20000,
     learning_rate=0.000001,
     policy_kwargs = policy_kwargs,
-    ent_coef=0.001,
+    ent_coef=0.0001,
     vf_coef=0.5
 )
 #

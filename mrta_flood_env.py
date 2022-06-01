@@ -302,7 +302,7 @@ class MRTAENV(Env):
         self.visited.append((action, self.agent_taking_decision))
         if action == self.depot_id:
             self.agents_current_payload[0, agent_taking_decision] = self.max_capacity
-            self.agents_current_range[0, agent_taking_decision] = self.max_capacity
+            self.agents_current_range[0, agent_taking_decision] = self.max_range
             self.nodes_visited[action] = 0
         if self.nodes_visited[action] != 1 and action != self.depot_id:
 

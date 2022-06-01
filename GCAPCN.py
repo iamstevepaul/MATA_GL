@@ -10,7 +10,7 @@ class SimpleNN(nn.Module):
     def __init__(self,
                  n_layers=2,
                  n_dim=128,
-                 n_p=1,
+                 n_p=2,
                  node_dim=2,
                  n_K=2
                  ):
@@ -20,7 +20,8 @@ class SimpleNN(nn.Module):
         self.n_p = n_p
         self.n_K = n_K
         self.node_dim = node_dim
-        self.init_embed = nn.Linear(node_dim, n_dim * n_p)
+        self.init_embed = nn.Linear(node_dim, n_dim)
+        # self.inter_embed = nn.Linear(n_dim * n_p, n_dim)
         self.init_embed_depot = nn.Linear(2, n_dim)
 
 
@@ -33,6 +34,7 @@ class SimpleNN(nn.Module):
 
         # p = 3
         F0 = self.init_embed(X)
+        # F0 = self.inter_embed(F0)
 
 
 
@@ -50,9 +52,9 @@ class GCAPCNFeatureExtractorNTDA(nn.Module):
     def __init__(self,
                  n_layers=2,
                  n_dim=128,
-                 n_p=2,
+                 n_p=1,
                  node_dim=2,
-                 n_K=2
+                 n_K=1
                  ):
         super(GCAPCNFeatureExtractorNTDA, self).__init__()
         self.n_layers = n_layers
@@ -96,27 +98,20 @@ class GCAPCNFeatureExtractorNTDA(nn.Module):
 
         # p = 3
         F0 = self.init_embed(X_loc)
-        F0_squared = torch.mul(F0[:, :, :], F0[:, :, :])
+        # F0_squared = torch.mul(F0[:, :, :], F0[:, :, :])
         # K = 3
         L = D - A
-        L_squared = torch.matmul(L, L)
+        # L_squared = torch.matmul(L, L)
         # L_cube = torch.matmul(L, L_squared)
 
         g_L1_1 = self.W_L_1_G1(torch.cat((F0[:, :, :],
                                           torch.matmul(L, F0)[:, :, :],
-                                          torch.matmul(L_squared, F0)[:, :, :]
                                           ),
                                          -1))
 
-        g_L1_2 = self.W_L_1_G2(torch.cat((F0_squared[:, :, :],
-                                          torch.matmul(L, F0_squared)[:, :, :],
-                                          torch.matmul(L_squared, F0_squared)[:, :, :]
-                                          ),
-                                         -1))
-
-
-        F1 = torch.cat((g_L1_1, g_L1_2), -1)
-        F1 = self.activ(F1) + F0 # skip connection
+        # F1 = self.normalization_1(F1)
+        F1 = g_L1_1#torch.cat((g_L1_1), -1)
+        F1 = self.activ(F1) #+ F0
         # F1 = self.normalization_1(F1)
 
         F_final = self.activ(self.W_F(F1))
