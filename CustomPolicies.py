@@ -31,6 +31,9 @@ from stable_baselines_al.common.distributions import (
 from stable_baselines_al.common.utils import get_device, is_vectorized_observation, obs_as_tensor
 from GCAPCN import GCAPCNFeatureExtractor, GCAPCNFeatureExtractorNTDA, SimpleNN
 
+#   TODO:
+#   Make the policy network task independent
+
 def dicttuple(cls: tuple):
     """Extends a tuple class with methods for the dict constructor."""
 
@@ -105,8 +108,8 @@ class ActorCriticGCAPSPolicy(BasePolicy):
         value_net_net = [th.nn.Linear(n_dim, n_dim, bias=False),th.nn.Linear(n_dim, 1, bias=False)]
         self.value_net = th.nn.Sequential(*value_net_net)
         self.features_extractor = SimpleNN(node_dim=node_dim,n_dim=features_dim)
-        self.agent_decision_context = th.nn.Linear(5,n_dim)
-        self.agent_context = th.nn.Linear(5,n_dim)
+        self.agent_decision_context = th.nn.Linear(6,n_dim)
+        self.agent_context = th.nn.Linear(6,n_dim)
         self.full_context_nn = th.nn.Linear(2*n_dim, n_dim)
         self.optimizer = self.optimizer_class(self.parameters(), lr=lr_schedule(1), **self.optimizer_kwargs)
         self.action_dist = make_proba_distribution(action_space, use_sde=use_sde)
