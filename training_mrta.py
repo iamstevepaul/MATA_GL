@@ -62,8 +62,8 @@ class Normalization(nn.Module):
 
 
 env = DummyVecEnv([lambda: MRTAENV(
-        n_locations = 41,
-        n_agents = 6,
+        n_locations = 71,
+        n_agents = 10,
         enable_dynamic_tasks=False,
         display = False,
         enable_topological_features = False

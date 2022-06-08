@@ -10,7 +10,7 @@ class SimpleNN(nn.Module):
     def __init__(self,
                  n_layers=2,
                  n_dim=128,
-                 n_p=2,
+                 n_p=1,
                  node_dim=2,
                  n_K=2
                  ):
@@ -20,8 +20,7 @@ class SimpleNN(nn.Module):
         self.n_p = n_p
         self.n_K = n_K
         self.node_dim = node_dim
-        self.init_embed = nn.Linear(node_dim, n_dim)
-        # self.inter_embed = nn.Linear(n_dim * n_p, n_dim)
+        self.init_embed = nn.Linear(node_dim, n_dim * n_p)
         self.init_embed_depot = nn.Linear(2, n_dim)
 
 
@@ -34,7 +33,6 @@ class SimpleNN(nn.Module):
 
         # p = 3
         F0 = self.init_embed(X)
-        # F0 = self.inter_embed(F0)
 
 
 
