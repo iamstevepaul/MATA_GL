@@ -38,7 +38,7 @@ import ot
 #   Task status record for the agents - done
 #   Counting conflicts - done
 #   Update the context to include the record of only the agent taking decision - done
-#   Clone or copy whereever possible
+#   Clone or copy where ever possible - done
 #   Cleanup free floating params
 #   Move TD abstraction to policy file - not feasible
 #   BiGraph matching based decoding
