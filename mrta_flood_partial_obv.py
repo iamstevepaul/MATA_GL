@@ -326,7 +326,7 @@ class MRTAENV_PO(Env):
 
         reward = 0.0
         info = {}
-        travel_distance = self.distance_matrix[current_location_id, action]
+        travel_distance = self.distance_matrix[current_location_id, action].copy()
         self.agents_current_range[0, agent_taking_decision] -= travel_distance
         self.agents_prev_decision_time[agent_taking_decision, 0] = self.time
         self.visited.append((action, self.agent_taking_decision))
@@ -478,12 +478,12 @@ class MRTAENV_PO(Env):
                     ids_1 = (states_time_i > states_time_j).nonzero()
                     ids_2 = (states_time_i < states_time_j).nonzero()
                     if ids_1.shape[0] > 0:
-                        self.agents_state_record[j, ids_1[:,0], :] = self.agents_state_record[i, ids_1[:,0], :]
+                        self.agents_state_record[j, ids_1[:,0], :] = self.agents_state_record[i, ids_1[:,0], :].clone()
                         self.agents_record_nodes_visited[j, self.agents_state_record[i, ids_1[:,0], 0].to(torch.int64)] = 1
                         self.agents_record_nodes_visited[j, 0] = 0
 
                     if ids_2.shape[0] > 0:
-                        self.agents_state_record[i, ids_2[:,0], :] = self.agents_state_record[j, ids_2[:,0], :]
+                        self.agents_state_record[i, ids_2[:,0], :] = self.agents_state_record[j, ids_2[:,0], :].clone()
                         self.agents_record_nodes_visited[i, self.agents_state_record[j, ids_2[:, 0], 0].to(torch.int64)] = 1
                         self.agents_record_nodes_visited[i, 0] = 0
 
@@ -546,9 +546,9 @@ class MRTAENV_PO(Env):
         # if self.active_tasks.shape == 0:
         #     print("Error....")
         locations = torch.tensor(self.locations)
-        time_deadlines = (self.time_deadlines.T)
-        location_demand = (self.location_demand.T)
-        deadlines_passed = self.deadline_passed.T
+        time_deadlines = (self.time_deadlines.T).clone()
+        location_demand = (self.location_demand.T).clone()
+        deadlines_passed = (self.deadline_passed.T).clone()
         node_properties = torch.cat((locations, time_deadlines, location_demand, deadlines_passed), dim=1)
         node_properties = node_properties[1:, :] # excluding the depot
         node_properties[:, 0:4] = node_properties[:, 0:4]/node_properties[:, 0:4].max(dim=0).values # normalizing all except deadline_passed
