@@ -92,7 +92,7 @@ class ActorCriticGCAPSPolicy(BasePolicy):
         optimizer_class: Type[th.optim.Optimizer] = th.optim.Adam,
         optimizer_kwargs: Optional[Dict[str, Any]] = None,
         features_dim = 128,
-        node_dim=4
+        node_dim=5
                  ):
         super(ActorCriticGCAPSPolicy, self).__init__(observation_space,
             action_space,
@@ -108,8 +108,8 @@ class ActorCriticGCAPSPolicy(BasePolicy):
         value_net_net = [th.nn.Linear(n_dim, n_dim, bias=False),th.nn.Linear(n_dim, 1, bias=False)]
         self.value_net = th.nn.Sequential(*value_net_net)
         self.features_extractor = GCAPCNFeatureExtractorNTDA(node_dim=node_dim,n_dim=features_dim)
-        self.agent_decision_context = th.nn.Linear(4,n_dim)
-        self.agent_context = th.nn.Linear(4,n_dim)
+        self.agent_decision_context = th.nn.Linear(5,n_dim)
+        self.agent_context = th.nn.Linear(5,n_dim)
         self.full_context_nn = th.nn.Linear(2*n_dim, n_dim)
         self.optimizer = self.optimizer_class(self.parameters(), lr=lr_schedule(1), **self.optimizer_kwargs)
         self.action_dist = make_proba_distribution(action_space, use_sde=use_sde)

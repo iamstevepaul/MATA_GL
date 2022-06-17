@@ -1,6 +1,6 @@
 """
 Author: Steve Paul 
-Date: 5/31/22 """
+Date: 6/15/22 """
 
 
 import numpy as np
@@ -47,36 +47,30 @@ import ot
 #   Continuous reward
 
 
-
-# Create Environment
-class MRTAENV_PO(Env):
+class MRTA_TAPTC_Env(Env):
 
     def __init__(self,
                  n_locations=100,
                  visited=[],
                  n_agents=2,
                  agents=[],
-                 agents_location=[],
                  total_distance_travelled=0.0,
-                 max_capacity=6,
-                 max_range=4,
                  enable_dynamic_tasks = False,
                  n_initial_tasks = 30,
                  display = False,
                  enable_topological_features = False,
-                 agents_info_exchange_distance_threshold=0.5
+                 agents_info_exchange_distance_threshold=0.7
                  ):
         # Action will be choosing the next task. (Can be a task that is alraedy done)
         # It would be great if we can force the agent to choose not-done task
-        super(MRTAENV_PO, self).__init__()
+        super(MRTA_TAPTC_Env, self).__init__()
         self.n_locations = n_locations
         self.action_space = Discrete(1)
         self.locations = np.random.random((n_locations, 2))
-        self.depot = self.locations[0, :]
+        # self.depot = self.locations[0, :]
         self.visited = visited
         self.n_agents = n_agents
         self.agents = agents
-        self.agents_location = agents_location
         self.agents_prev_location = np.zeros((n_agents, 1), dtype=int)
         self.agents_next_location = np.zeros((n_agents, 1), dtype=int)
         self.agents_distance_travelled = np.zeros((n_agents, 1))
@@ -94,22 +88,19 @@ class MRTAENV_PO(Env):
         self.agent_speed = 0.01
         self.agents_next_decision_time = np.zeros((n_agents, 1))
         self.agents_prev_decision_time = np.zeros((n_agents, 1))
-        self.agents_destination_coordinates = np.ones((n_agents, 1)) * self.depot
+        self.agents_destination_coordinates = np.random.random((self.n_agents, 2))
 
         self.state = 00  # call the graph encoding function + context here
         self.observation = 00  # call the graph encoding function + context here
 
         self.total_reward = 0.0
         self.total_length = 0
-        # self.first_dec = True
 
-        self.max_capacity = max_capacity
-        self.max_range = max_range
-        self.agents_current_range = torch.ones((1,n_agents), dtype=torch.float32)*max_range
-        self.agents_current_payload = torch.ones((1,n_agents), dtype=torch.float32)*max_capacity
+        self.robot_work_capacity = torch.randint(1, 3, (self.n_agents, 1), dtype=torch.float).view(-1) / 100
+        self.task_workload = torch.ones((self.n_locations, 1))*.2
         self.time_deadlines = (torch.tensor(np.random.random((1, n_locations)))*.3 + .7)*200
         self.time_deadlines[0, 0] = 1000000
-        self.location_demand = torch.ones((1, n_locations), dtype=torch.float32)
+        # self.location_demand = torch.ones((1, n_locations), dtype=torch.float32)
         self.task_done = torch.zeros((1, n_locations), dtype=torch.float32)
         self.deadline_passed = torch.zeros((1, n_locations), dtype=torch.float32)
         self.depot_id = 0
@@ -125,11 +116,11 @@ class MRTAENV_PO(Env):
         self.time_start[0,0:self.n_initial_tasks] = 0
         self.display = display
         self.enable_topological_features = enable_topological_features
-        self.agents_state_record = torch.zeros((self.n_agents,self.n_agents, 7), dtype=torch.float32) # keeps record of
+        self.agents_state_record = torch.zeros((self.n_agents,self.n_agents, 6), dtype=torch.float32) # keeps record of
         # each agents info on other agents along with a time stamp. 7 - 6 (inclusind current dest id) state vars of agents and 1 for time stamp
         self.agents_state_record[:,:,-1] = -1 # starting as -1
-        self.agents_current_coordinates = np.ones((n_agents, 2)) * self.depot
-        self.agents_previous_recorded_coordinates = np.ones((n_agents, 2)) * self.depot
+        self.agents_current_coordinates = self.agents_destination_coordinates.copy()
+        self.agents_previous_recorded_coordinates = self.agents_destination_coordinates.copy()
         self.agents_velocity = torch.zeros((self.n_agents, 1), dtype=torch.float32)
 
         self.agents_info_exchange_distance_threshold = agents_info_exchange_distance_threshold
@@ -142,16 +133,16 @@ class MRTAENV_PO(Env):
             self.observation_space = Dict(
                 dict(
                     # location=Box(low=0, high=1, shape=self.locations.shape),
-                    depot=Box(low=0, high=1, shape=(1, 2)),
+                    # depot=Box(low=0, high=1, shape=(1, 2)),
                     mask=Box(low=0, high=1, shape=self.nodes_visited.shape),
                     # agents_destination_coordinates=Box(low=0, high=1, shape=self.agents_destination_coordinates.shape),
                     # agent_taking_decision_coordinates=Box(low=0, high=1, shape=self.agents_destination_coordinates[
                     #                                                            self.agent_taking_decision, :].reshape(1,
                     #                                                                                                   2).shape),
-                    topo_laplacian=Box(low=0, high=1, shape=(n_locations-1,n_locations-1)),
+                    topo_laplacian=Box(low=0, high=1, shape=(n_locations,n_locations)),
                     task_graph_nodes=Box(low=0, high=1, shape=(n_locations - 1, 5)),
                     # task_graph_adjacency=Box(low=0, high=1, shape=(n_locations - 1, n_locations - 1)),
-                    agents_graph_nodes=Box(low=0, high=1, shape=(n_agents, 6)),
+                    agents_graph_nodes=Box(low=0, high=1, shape=(n_agents, 5)),
                     # agents_graph_adjacency=Box(low=0, high=1, shape=(n_agents, n_agents)),
                     # nodes_visited=Box(low=0, high=1, shape=self.nodes_visited.shape),
                     agent_taking_decision=Box(low=0, high=n_agents, shape=(1,), dtype=int),
@@ -167,16 +158,16 @@ class MRTAENV_PO(Env):
             self.observation_space = Dict(
                 dict(
                     # location=Box(low=0, high=1, shape=self.locations.shape),
-                    depot=Box(low=0, high=1, shape=(1, 2)),
+                    # depot=Box(low=0, high=1, shape=(1, 2)),
                     mask=Box(low=0, high=1, shape=self.nodes_visited.shape),
                     # agents_destination_coordinates=Box(low=0, high=1, shape=self.agents_destination_coordinates.shape),
                     # agent_taking_decision_coordinates=Box(low=0, high=1, shape=self.agents_destination_coordinates[
                     #                                                            self.agent_taking_decision, :].reshape(1,
                     #                                                                                                   2).shape),
                     # topo_laplacian=Box(low=0, high=100000, shape=(n_locations-1,n_locations-1)),
-                    task_graph_nodes=Box(low=0, high=1, shape=(n_locations-1,5)),
-                    task_graph_adjacency=Box(low=0, high=1, shape=(n_locations-1, n_locations-1)),
-                    agents_graph_nodes=Box(low=0, high=1, shape=(n_agents, 6)),
+                    task_graph_nodes=Box(low=0, high=1, shape=(n_locations,5)),
+                    task_graph_adjacency=Box(low=0, high=1, shape=(n_locations, n_locations)),
+                    agents_graph_nodes=Box(low=0, high=1, shape=(n_agents, 5)),
                     # agents_graph_adjacency=Box(low=0, high=1, shape=(n_agents, n_agents)),
                     # nodes_visited=Box(low=0, high=1, shape=self.nodes_visited.shape),
                     agent_taking_decision=Box(low=0, high=n_agents, shape=(1,), dtype=int),
@@ -205,7 +196,7 @@ class MRTAENV_PO(Env):
         if self.enable_topological_features:
             state = {
                 # 'location': self.locations,
-                'depot': self.depot.reshape(1, 2),
+                # 'depot': self.depot.reshape(1, 2),
                 'mask': mask,
                 # 'agents_destination_coordinates': self.agents_destination_coordinates,
                 # 'agent_taking_decision_coordinates': self.agents_destination_coordinates[
@@ -225,7 +216,7 @@ class MRTAENV_PO(Env):
         else:
             state = {
                 # 'location': self.locations,
-                'depot': self.depot.reshape(1, 2),
+                # 'depot': self.depot.reshape(1, 2),
                 'mask': mask,
                 # 'agents_destination_coordinates': self.agents_destination_coordinates,
                 # 'agent_taking_decision_coordinates': self.agents_destination_coordinates[
@@ -316,36 +307,43 @@ class MRTAENV_PO(Env):
 
 
         agent_taking_decision = self.agent_taking_decision  # id of the agent taking action
+        # print("Agent taking decision:", agent_taking_decision)
         current_location_id = self.current_location_id  # current location id of the robot taking decision
 
         if self.nodes_visited[action] == 1:
+
             self.conflicts_count += 1 # if the chosen task was already visited (according to ground truth, then increase the conflict count)
+            # print("Conflict:", self.conflicts_count)
+            # print("Agents record updated")
+            # print("Before: ", self.agents_record_nodes_visited[agent_taking_decision, :])
             self.agents_record_nodes_visited[agent_taking_decision, action] = 1
+            # print("After: ", self.agents_record_nodes_visited[agent_taking_decision, :])
 
         self.total_length = self.total_length + 1
 
         reward = 0.0
         info = {}
         travel_distance = self.distance_matrix[current_location_id, action].copy()
-        self.agents_current_range[0, agent_taking_decision] -= travel_distance
+        # self.agents_current_range[0, agent_taking_decision] -= travel_distance
         self.agents_prev_decision_time[agent_taking_decision, 0] = self.time
         self.visited.append((action, self.agent_taking_decision))
-        if action == self.depot_id:
-            self.agents_current_payload[0, agent_taking_decision] = self.max_capacity
-            self.agents_current_range[0, agent_taking_decision] = self.max_range
-            self.nodes_visited[action] = 0
-            self.agents_record_nodes_visited[self.agent_taking_decision, action] = 0
-        if self.nodes_visited[action] != 1 and action != self.depot_id:
+        # if action == self.depot_id:
+        #     # self.agents_current_payload[0, agent_taking_decision] = self.max_capacity
+        #     # self.agents_current_range[0, agent_taking_decision] = self.max_range
+        #     self.nodes_visited[action] = 0
+        #     self.agents_record_nodes_visited[self.agent_taking_decision, action] = 0
+        work_time = self.task_workload[action,0]/self.robot_work_capacity[agent_taking_decision]
+        if self.nodes_visited[action] != 1:
 
             distance_covered = self.total_distance_travelled + travel_distance
             self.total_distance_travelled = distance_covered
             self.agents_distance_travelled[agent_taking_decision] += travel_distance
-            self.agents_current_payload[0, agent_taking_decision] -= self.location_demand[0, action].item()
+            # self.agents_current_payload[0, agent_taking_decision] -= self.location_demand[0, action].item()
 
             # update the  status of the node_visited that was chosen
             self.nodes_visited[action] = 1
             self.agents_record_nodes_visited[agent_taking_decision, action] = 1
-            if self.time_deadlines[0, action] < torch.tensor(self.time):
+            if self.time_deadlines[0, action] < torch.tensor(self.time + work_time):
                 self.deadline_passed[0, action] = 1
             else:
                 self.task_done[0, action] = 1
@@ -364,7 +362,7 @@ class MRTAENV_PO(Env):
         self.agents_prev_location[agent_taking_decision] = current_location_id
         self.agents_destination_coordinates[agent_taking_decision] = self.locations[action].copy()
         self.agents_distance_to_destination[agent_taking_decision] = travel_distance
-        self.agents_next_decision_time[agent_taking_decision] = self.time + travel_distance / self.agent_speed
+        self.agents_next_decision_time[agent_taking_decision] = self.time+ work_time + travel_distance / self.agent_speed
 
         # Here we update the self state record for the robot which made a decision
         self.agent_taking_decision_self_record_update()
@@ -380,7 +378,7 @@ class MRTAENV_PO(Env):
 
         self.time = self.agents_next_decision_time[self.agent_taking_decision][0].copy()
         # print(prev_time, self.time)
-        vec = (self.locations[self.agents_next_location][:, 0, :] - self.locations[self.agents_prev_location][:, 0, :]).copy()
+        vec = (self.agents_destination_coordinates - self.agents_previous_recorded_coordinates).copy()
         vec_unit = (vec / np.linalg.norm(vec, axis=1).reshape((self.n_agents, 1))).copy()
         where_are_NaNs = np.isnan(vec_unit)
         vec_unit[where_are_NaNs] = 0.0
@@ -402,10 +400,10 @@ class MRTAENV_PO(Env):
         deadlines_passed_ids = (self.time_deadlines < torch.tensor(self.time)).nonzero()
         # print("Deadline passed: ", deadlines_passed_ids[:,1].T)
         if deadlines_passed_ids.shape[0] != 0:
-
+            # print("Some deadlines passed: ", deadlines_passed_ids[:,1])
             self.deadline_passed[0, deadlines_passed_ids[:,1]] = 1
             self.nodes_visited[deadlines_passed_ids[:, 1], 0] = 1
-
+            # print("nodes visisted: ", self.nodes_visited)
             self.agents_record_nodes_visited[:, deadlines_passed_ids[:, 1], 0] = 1 # updating the state record of all the agents when some of the deadlines are passed
 
         self.active_tasks = ((self.nodes_visited == 0).nonzero())[0]
@@ -413,16 +411,19 @@ class MRTAENV_PO(Env):
         # print(sum(self.nodes_visited))
 
         self.available_tasks = (self.time_start <= self.time).to(torch.float32).T # making new tasks available
-
-        if sum(self.nodes_visited) == self.n_locations - 1:
+        # print(self.nodes_visited.T)
+        # print(sum(self.nodes_visited) == self.n_locations)
+        # print(sum(self.nodes_visited))
+        # print(self.n_locations)
+        if sum(self.nodes_visited) == self.n_locations:
             # reward = 1/(self.total_distance_travelled + 10e-5) - (self.total_length - self.n_locations+1)/self.n_locations
             # 1/(self.total_distance_travelled**2+ 10e-5)## change this with the distance travelled
             # self.total_reward += reward
-            final_distance_to_depot = torch.cdist(torch.tensor(self.agents_destination_coordinates), torch.tensor(self.depot[None,:])).sum().item()
-            if self.task_done.sum() == self.n_locations - 1:
-                reward = -(self.total_distance_travelled +final_distance_to_depot)/ (1.41 * self.n_locations)
-            else:
-                reward = -((self.n_locations - 1) - self.task_done.sum())/((self.n_locations - 1))
+            # final_distance_to_depot = torch.cdist(torch.tensor(self.agents_destination_coordinates), torch.tensor(self.depot[None,:])).sum().item()
+            # if self.task_done.sum() == self.n_locations :
+            #     reward = -(self.total_distance_travelled)/ (1.41 * self.n_locations)
+            # else:
+            reward = -((self.n_locations) - self.task_done.sum())/((self.n_locations))
             self.total_reward = reward
             self.done = True
             # if self.total_length == self.n_locations-1:
@@ -472,6 +473,7 @@ class MRTAENV_PO(Env):
                 min_distance = np.linalg.norm(x2_new - x1_new)
 
                 if min_distance < self.agents_info_exchange_distance_threshold:
+                    # print("information exchange happens")
                     states_time_i = self.agents_state_record[i,:,-1]
                     states_time_j = self.agents_state_record[j, :, -1]
                     # Updating the state record based on time stamp
@@ -479,13 +481,18 @@ class MRTAENV_PO(Env):
                     ids_2 = (states_time_i < states_time_j).nonzero()
                     if ids_1.shape[0] > 0:
                         self.agents_state_record[j, ids_1[:,0], :] = self.agents_state_record[i, ids_1[:,0], :].clone()
+                        # if
                         self.agents_record_nodes_visited[j, self.agents_state_record[i, ids_1[:,0], 0].to(torch.int64)] = 1
-                        self.agents_record_nodes_visited[j, 0] = 0
+                        # self.agents_record_nodes_visited[j, 0] = 0
 
                     if ids_2.shape[0] > 0:
                         self.agents_state_record[i, ids_2[:,0], :] = self.agents_state_record[j, ids_2[:,0], :].clone()
                         self.agents_record_nodes_visited[i, self.agents_state_record[j, ids_2[:, 0], 0].to(torch.int64)] = 1
-                        self.agents_record_nodes_visited[i, 0] = 0
+                        # self.agents_record_nodes_visited[i, 0] = 0
+                    # print("State record of i:", self.agents_state_record[i, :, :])
+                    # print("State record of j:", self.agents_state_record[j, :, :])
+                    # print("Nodes visited of i:",self.agents_record_nodes_visited[i,:])
+                    # print("Nodes visited of j:", self.agents_record_nodes_visited[j, :])
 
     def agent_taking_decision_self_record_update(self):
         #whev an agent takes a decision, self state update is done
@@ -493,8 +500,9 @@ class MRTAENV_PO(Env):
         new_state = torch.cat((
             torch.tensor(self.agents_next_location[self.agent_taking_decision]),
             torch.tensor(self.agents_destination_coordinates[self.agent_taking_decision]),
-            torch.tensor([self.agents_current_range[0, self.agent_taking_decision]/self.max_range]),
-            torch.tensor([self.agents_current_payload[0, self.agent_taking_decision]/self.max_capacity]),
+            # torch.tensor([self.agents_current_range[0, self.agent_taking_decision]/self.max_range]),
+            # torch.tensor([self.agents_current_payload[0, self.agent_taking_decision]/self.max_capacity]),
+            self.robot_work_capacity[self.agent_taking_decision].unsqueeze(dim=0),
             torch.tensor(self.agents_next_decision_time[self.agent_taking_decision]/max_time),
             torch.tensor([self.time])), dim=0)
         self.agents_state_record[self.agent_taking_decision, self.agent_taking_decision] = new_state
@@ -518,24 +526,24 @@ class MRTAENV_PO(Env):
         agent_taking_decision = self.agent_taking_decision
         # mask = self.nodes_visited.copy()
         mask = self.agents_record_nodes_visited[agent_taking_decision].numpy().copy() # the node visited record for the agent taking decision is being used
-        current_location_id = self.current_location_id
-        if self.agents_current_payload[0, agent_taking_decision] == 0:
-            mask[1:,0] = 1
-            mask[0, 0] = 0
-        elif current_location_id == self.depot_id:
-            mask[0, 0] = 1
-        else:
-            unreachbles = (self.distance_matrix[0,:] + self.distance_matrix[current_location_id,:] > self.agents_current_range[0, agent_taking_decision].item()).nonzero()
-            if unreachbles[0].shape[0] != 0:
-                mask[unreachbles[0], 0] = 1
-            mask = np.logical_or(mask, (self.deadline_passed.T).numpy()).astype(mask.dtype)
-            if mask[1:,0].prod() == 1: # if no other feasible locations, then go to depot
-                mask[0,0] = 0
+        # current_location_id = self.current_location_id
+        # if self.agents_current_payload[0, agent_taking_decision] == 0:
+        #     mask[1:,0] = 1
+        #     mask[0, 0] = 0
+        # elif current_location_id == self.depot_id:
+        #     mask[0, 0] = 1
+
+            # unreachbles = (self.distance_matrix[0,:] + self.distance_matrix[current_location_id,:] > self.agents_current_range[0, agent_taking_decision].item()).nonzero()
+            # if unreachbles[0].shape[0] != 0:
+                # mask[unreachbles[0], 0] = 1
+        mask = np.logical_or(mask, (self.deadline_passed.T).numpy()).astype(mask.dtype)
+            # if mask[1:,0].prod() == 1: # if no other feasible locations, then go to depot
+            #     mask[0,0] = 0
 
 
 
-        if mask.prod() != 0.0:
-            mask[0,0] = 0
+        # if mask.prod() != 0.0:
+        #     mask[0,0] = 0
 
         mask = mask*(self.available_tasks).numpy() # masking unavailable tasks
         return mask
@@ -547,17 +555,18 @@ class MRTAENV_PO(Env):
         #     print("Error....")
         locations = torch.tensor(self.locations)
         time_deadlines = (self.time_deadlines.T).clone()
-        location_demand = (self.location_demand.T).clone()
+        # location_demand = (self.location_demand.T).clone()
         deadlines_passed = (self.deadline_passed.T).clone()
-        node_properties = torch.cat((locations, time_deadlines, location_demand, deadlines_passed), dim=1)
-        node_properties = node_properties[1:, :] # excluding the depot
-        node_properties[:, 0:4] = node_properties[:, 0:4]/node_properties[:, 0:4].max(dim=0).values # normalizing all except deadline_passed
+        workload = self.task_workload
+        node_properties = torch.cat((locations, time_deadlines, workload, deadlines_passed), dim=1)
+        # node_properties = node_properties[1:, :] # excluding the depot
+        node_properties[:, 0:3] = node_properties[:, 0:3]/node_properties[:, 0:3].max(dim=0).values # normalizing all except deadline_passed
         distance_matrix = torch.cdist(node_properties, node_properties)
         adjacency_matrix = 1/(1+torch.cdist(node_properties, node_properties))
         adjacency_matrix = adjacency_matrix*(distance_matrix>0).to(torch.float32) # setting diagonal elements as 0
-        node_properties = node_properties[:,:]*self.available_tasks[1:,:] # masking the unavailable tasks
-        adjacency_matrix = adjacency_matrix*(self.available_tasks[1:,:].T)
-        adjacency_matrix = adjacency_matrix*self.available_tasks[1:,:]
+        node_properties = node_properties[:,:]*self.available_tasks[:,:] # masking the unavailable tasks
+        adjacency_matrix = adjacency_matrix*(self.available_tasks[:,:].T)
+        adjacency_matrix = adjacency_matrix*self.available_tasks[:,:]
         return node_properties, adjacency_matrix
 
     def generate_agents_graph(self):
@@ -576,66 +585,7 @@ class MRTAENV_PO(Env):
 
     def render(self, action):
 
-        # Show the locations
-
-        plt.plot(self.locations[0, 0], self.locations[0, 1], 'bo')
-        for i in range(1,self.n_locations):
-            if self.available_tasks[i,0] == 1:
-                if self.task_done[0,i] == 1:
-                    plt.plot(self.locations[i, 0], self.locations[i, 1], 'go')
-                elif self.nodes_visited[i,0] == 0 and self.deadline_passed[0,i] == 0:
-                    plt.plot(self.locations[i, 0], self.locations[i, 1], 'ro')
-                elif self.deadline_passed[0,i] == 1:
-                    plt.plot(self.locations[i, 0], self.locations[i, 1], 'ko')
-        plt.plot(self.locations[action, 0], self.locations[action, 1], 'mo')
-        prev_loc = self.locations[self.agents_prev_location][:,0,:]
-        next_loc = self.locations[self.agents_next_location][:,0,:]
-        diff = next_loc - prev_loc
-        velocity = np.zeros((self.n_agents, 2))
-        for i in range(self.n_agents):
-            if diff[i,0] == 0 and diff[i,1] == 0:
-                velocity[i,0] = 0
-                velocity[i, 1] = 0
-            else:
-                direction = diff[i,:]/(np.linalg.norm(diff[i,:]))
-                velocity[i, :] = direction*self.agent_speed
-
-        prev_time = self.time
-        current_agent_locations = prev_loc + (prev_time - self.agents_prev_decision_time)*velocity
-
-
-        agent_taking_decision = np.argmin(self.agents_next_decision_time)
-        # current_location_id = self.agents_next_location[agent_taking_decision][0].copy()
-        next_time = self.agents_next_decision_time[agent_taking_decision][0].copy()
-        delta_t = (next_time - prev_time)/10
-        curr_time = prev_time
-        for i in range(10):
-
-            current_agent_locations = current_agent_locations + velocity*delta_t
-            plt.plot(current_agent_locations[:,0], current_agent_locations[:,0], 'mv')
-            curr_time = curr_time + delta_t
-            deadlines_passed_ids = (self.time_deadlines < torch.tensor(curr_time)).nonzero()
-            time.sleep(0.01)
-
-
-
-        # print(prev_loc)
-        # print(next_loc)
-        # print("***********")
-        for i in range(self.n_agents):
-            plt.arrow(prev_loc[i,0],prev_loc[i,1], diff[i,0], diff[i,1])
-        plt.draw()
-        time.sleep(1)
-        plt.clf()
-        #   Grey as unavailable
-        #   Red as active
-        #   Green as done
-        #   Black as deadline passed and not completed
-        # Current location of the robots
-        # Show arrow for destination
-        # Encircle robot taking decision
-        # encircle decision taken
-        # Show movement inbetween decision-making
+        pass
 
 
 
@@ -643,11 +593,9 @@ class MRTAENV_PO(Env):
     def reset(self):
         self.action_space = Discrete(1)
         self.locations = np.random.random((self.n_locations, 2))
-        self.depot = self.locations[0, :]
         self.visited = []
         self.agents = []
         self.agent_taking_decision = 1
-        self.agents_location = []
         self.agents_prev_location = np.zeros((self.n_agents, 1), dtype=int)
         self.agents_next_location = np.zeros((self.n_agents, 1), dtype=int)
         self.agents_distance_travelled = np.zeros((self.n_agents, 1))
@@ -663,15 +611,14 @@ class MRTAENV_PO(Env):
         self.agent_speed = 0.01
         self.agents_next_decision_time = np.zeros((self.n_agents, 1))
         self.agents_prev_decision_time = np.zeros((self.n_agents, 1))
-        self.agents_destination_coordinates = np.ones((self.n_agents, 1)) * self.depot
+        self.agents_destination_coordinates = np.random.random((self.n_agents, 2))
         self.total_reward = 0.0
         self.total_length = 0
-        # self.first_dec = True
-        self.agents_current_range = torch.ones((1, self.n_agents), dtype=torch.float32) * self.max_range
-        self.agents_current_payload = torch.ones((1, self.n_agents), dtype=torch.float32) * self.max_capacity
+        self.robot_work_capacity = torch.randint(1, 3, (self.n_agents, 1), dtype=torch.float).view(-1) / 100
+        self.task_workload = torch.ones((self.n_locations, 1))*.2
         self.time_deadlines = (torch.tensor(np.random.random((1, self.n_locations))) * .3 + .7) * 200
         self.time_deadlines[0, 0] = 1000000 # large number for depot,
-        self.location_demand = torch.ones((1, self.n_locations), dtype=torch.float32)
+        # self.location_demand = torch.ones((1, self.n_locations), dtype=torch.float32)
         self.task_done = torch.zeros((1, self.n_locations), dtype=torch.float32)
         self.deadline_passed = torch.zeros((1, self.n_locations), dtype=torch.float32)
         self.active_tasks = ((self.nodes_visited == 0).nonzero())[0]
@@ -688,11 +635,11 @@ class MRTAENV_PO(Env):
         self.time_start = self.time_deadlines*(torch.rand((self.n_locations,1))*.5).T
         self.time_start[0,0:self.n_initial_tasks] = 0
 
-        self.agents_state_record = torch.zeros((self.n_agents,self.n_agents, 7),
+        self.agents_state_record = torch.zeros((self.n_agents,self.n_agents, 6),
                                                dtype=torch.float32)  # keeps record of each agents info on other agents along with a time stamp
         self.agents_state_record[:, :, -1] = -1  # starting as -1
-        self.agents_current_coordinates = np.ones((self.n_agents, 2)) * self.depot
-        self.agents_previous_recorded_coordinates = np.ones((self.n_agents, 2)) * self.depot
+        self.agents_current_coordinates = self.agents_destination_coordinates.copy()
+        self.agents_previous_recorded_coordinates = self.agents_destination_coordinates.copy()
         self.agents_velocity = torch.zeros((self.n_agents, 1), dtype=torch.float32)
 
         self.agents_record_nodes_visited = torch.zeros((self.n_agents, self.n_locations, 1), dtype=torch.float32)
