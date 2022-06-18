@@ -1,73 +1,39 @@
 """
 Author: Steve Paul 
 Date: 6/16/22 """
-
-
-from torch import nn
-from collections import defaultdict
+# from torch import nn
+# from collections import defaultdict
 import warnings
-import math
-import numpy as np
-import gym
+# import math
+# import numpy as np
+# import gym
 from stable_baselines_al import PPO, A2C
 # from stable_baselines.common import make_vec_env
 from MRTA_TAPTC_Env import MRTA_TAPTC_Env
-import json
-import datetime as dt
-import torch
-from utils import *
-from topology import *
-import scipy.sparse as sp
-from persim import wasserstein, bottleneck
-import ot
+# import json
+# import datetime as dt
+# import torch
+# from utils import *
+# from topology import *
+# import scipy.sparse as sp
+# from persim import wasserstein, bottleneck
+# import ot
 from CustomPolicies import ActorCriticGCAPSPolicy
-# from CustomPolicies import ActorCriticGCAPSPolicy
-from stable_baselines_al.common.utils import set_random_seed
-
+# from stable_baselines_al.common.utils import set_random_seed
+from training_config import get_config
 
 from stable_baselines_al.common.vec_env import DummyVecEnv, SubprocVecEnv
 
 warnings.filterwarnings('ignore')
 
-class Normalization(nn.Module):
-
-    def __init__(self, embed_dim, normalization='batch'):
-        super(Normalization, self).__init__()
-
-        normalizer_class = {
-            'batch': nn.BatchNorm1d,
-            'instance': nn.InstanceNorm1d
-        }.get(normalization, None)
-
-        self.normalizer = normalizer_class(embed_dim, affine=True)
-
-        # Normalization by default initializes affine parameters with bias 0 and weight unif(0,1) which is too large!
-        # self.init_parameters()
-
-    def init_parameters(self):
-
-        for name, param in self.named_parameters():
-            stdv = 1. / math.sqrt(param.size(-1))
-            param.data.uniform_(-stdv, stdv)
-
-    def forward(self, input):
-
-        if isinstance(self.normalizer, nn.BatchNorm1d):
-            return self.normalizer(input.view(-1, input.size(-1))).view(*input.size())
-        elif isinstance(self.normalizer, nn.InstanceNorm1d):
-            return self.normalizer(input.permute(0, 2, 1)).permute(0, 2, 1)
-        else:
-            assert self.normalizer is None, "Unknown normalizer type"
-            return input
-
-
+config = get_config()
 
 env = DummyVecEnv([lambda: MRTA_TAPTC_Env(
-        n_locations = 10,
-        n_agents = 2,
-        enable_dynamic_tasks=False,
+        n_locations = config.n_locations,
+        n_agents = config.n_robots,
+        enable_dynamic_tasks=config.enable_dynamic_tasks,
         display = False,
-        enable_topological_features = False
+        enable_topological_features = config.enable_topological_features
 )])
 
 # n_envs = 4
@@ -75,53 +41,64 @@ env = DummyVecEnv([lambda: MRTA_TAPTC_Env(
 # num_cpu = 6
 # env = SubprocVecEnv([make_env(i) for i in range(num_cpu)])
 
-# model = PPO('MlpPolicy',
-#     env,
-#     gamma=1.00,
-#     verbose=1,
-#     n_epochs=10,
-#     batch_size=10000,
-#     tensorboard_log="logger/",
-#     create_eval_env=True,
-#     n_steps=20000)
-
 policy_kwargs=dict(
     # features_extractor_class=GCAPCNFeatureExtractor,
-    features_extractor_kwargs=dict(features_dim=128,node_dim=2),
+    features_extractor_kwargs=dict(
+        feature_extractor=config.node_encoder,
+        features_dim=config.features_dim,
+        K=config.K,
+        Le=config.Le,
+        P=config.P,
+        node_dim=env.envs[0].task_graph_node_dim,
+        agent_node_dim=env.envs[0].agent_node_dim,
+        n_heads=config.n_heads,
+        tanh_clipping=config.tanh_clipping,
+        mask_logits=config.mask_logits,
+        temp=config.temp
+    ),
     # activation_fn=torch.nn.LeakyReLU,
     # net_arch=[dict(vf=[128,128])]
 )
+if config.enable_dynamic_tasks:
+    task_type = "D"
+else:
+    task_type = "ND"
 
+if config.node_encoder == "CAPAM" or config.node_encoder == "MLP":
+    tb_logger_location = config.logger+config.problem\
+                     + "/" + config.node_encoder + "/" \
+                    + config.problem\
+                          + "_nloc_" + str(config.n_locations)\
+                         + "_nrob_" + str(config.n_robots) + "_" + task_type + "_"\
+                         + config.node_encoder\
+                         + "_K_" + str(config.K) \
+                         + "_P_" + str(config.P) + "_Le_" + str(config.Le) \
+                         + "_h_" + str(config.features_dim)
+    save_model_loc = config.model_save+config.problem\
+                     + "/" + config.node_encoder + "/" \
+                    + config.problem\
+                          + "_nloc_" + str(config.n_locations)\
+                         + "_nrob_" + str(config.n_robots) + "_" + task_type + "_"\
+                         + config.node_encoder\
+                         + "_K_" + str(config.K) \
+                         + "_P_" + str(config.P) + "_Le_" + str(config.Le) \
+                         + "_h_" + str(config.features_dim)
 model = PPO(
     ActorCriticGCAPSPolicy,
     env,
-    gamma=1.00,
+    gamma=config.gamma,
     verbose=1,
-    n_epochs=100,
-    batch_size=10000,
-    tensorboard_log="logger/",
+    n_epochs=config.n_epochs,
+    batch_size=config.batch_size,
+    tensorboard_log=tb_logger_location,
     # create_eval_env=True,
-    n_steps=20000,
-    learning_rate=0.000001,
+    n_steps=config.n_steps,
+    learning_rate=config.learning_rate,
     policy_kwargs = policy_kwargs,
-    ent_coef=0.0001,
-    vf_coef=0.5
+    ent_coef=config.ent_coef,
+    vf_coef=config.val_coef
 )
-#
-# model = A2C(
-#     ActorCriticGCAPSPolicy,
-#     env,
-#     gamma=1.00,
-#     verbose=1,
-#     tensorboard_log="logger/",
-#     create_eval_env=True,
-#     n_steps=20000
-# )
-
-model.learn(total_timesteps=2000000)
+model.learn(total_timesteps=config.total_steps)
 
 obs = env.reset()
-problem_name = "MRTA_TAPTC_PO"
-# log_dir = "."
-model.save(problem_name)
-# model = PPO.load(problem_name, env=env)
+model.save(save_model_loc)

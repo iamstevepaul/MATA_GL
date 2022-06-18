@@ -45,7 +45,7 @@ class SimpleNN(nn.Module):
             h.mean(dim=1),  # average to get embedding of graph, (batch_size, embed_dim)
         )
 
-class GCAPCNFeatureExtractorNTDA(nn.Module):
+class CAPAM(nn.Module):
 
     def __init__(self,
                  n_layers=2,
@@ -54,7 +54,7 @@ class GCAPCNFeatureExtractorNTDA(nn.Module):
                  node_dim=2,
                  n_K=1
                  ):
-        super(GCAPCNFeatureExtractorNTDA, self).__init__()
+        super(CAPAM, self).__init__()
         self.n_layers = n_layers
         self.n_dim = n_dim
         self.n_p = n_p
@@ -64,8 +64,6 @@ class GCAPCNFeatureExtractorNTDA(nn.Module):
         self.init_embed_depot = nn.Linear(2, n_dim)
 
         self.W_L_1_G1 = nn.Linear(n_dim * (n_K + 1) * n_p, n_dim)
-        self.W_L_1_G2 = nn.Linear(n_dim * (n_K + 1) * n_p, n_dim)
-
         self.normalization_1 = nn.BatchNorm1d(n_dim * n_p)
 
         self.W_F = nn.Linear(n_dim * n_p, n_dim)

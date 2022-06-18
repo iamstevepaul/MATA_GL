@@ -17,38 +17,6 @@ import scipy.sparse as sp
 from persim import wasserstein, bottleneck
 import ot
 
-
-# TODO:
-#   Generate task graph -  done
-#   Generate Feasible task graph - done
-#   Generate agent network graph - done
-#   parallelize PD computation - done
-#   Trial runs for debugging - done
-#   Include agent taking decision to the state dictionary - done
-#   Introduce dynamic tasks: - done
-#       Generation of dynamic tasks - done
-#       Dynamic task graph generation - done
-#   Introduce communication uncertainties - done
-#   Update the current location of the agents during each decision making - done
-#   Finding if there was information exchange between two agents - done
-#   Variables to maintain individual peer state copies - done
-#   Update peer state copies - done
-#   Current location id is changing in a step due to some weird reason, need to check this - done
-#   Normalize the node properties - done
-#   Task status record for the agents - done
-#   Counting conflicts - done
-#   Update the context to include the record of only the agent taking decision - done
-#   Clone or copy where ever possible - done
-#   Cleanup free floating params
-#   Move TD abstraction to policy file - not feasible
-#   BiGraph matching based decoding
-#   Fix the memory issue
-#   Visualization
-#   Continuous reward
-
-
-
-# Create Environment
 class MRTAENV_PO(Env):
 
     def __init__(self,

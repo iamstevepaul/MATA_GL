@@ -2,7 +2,6 @@
 Author: Steve Paul 
 Date: 4/14/22 """
 ""
-# -*- coding: utf-8 -*-
 
 import numpy as np
 import gym
@@ -18,28 +17,6 @@ import scipy.sparse as sp
 from persim import wasserstein, bottleneck
 import ot
 
-
-# TODO:
-#   Generate task graph -  done
-#   Generate Feasible task graph - done
-#   Generate agent network graph - done
-#   parallelize PD computation - done
-#   Trial runs for debugging - done
-#   Include agent taking decision to the state dictionary - done
-#   Introduce dynamic tasks: - done
-#       Generation of dynamic tasks - done
-#       Dynamic task graph generation - done
-#   Introduce communication uncertainties
-#   BiGraph matching based decoding
-#   Move TD abstraction to policy file - not feasible
-#   Fix the memory issue
-#   Visualization
-#   Continuous reward
-#   Current location id is changing in a step due to some weird reason, need to check this - done
-#   normalize the node properties - done
-
-
-# Create Environment
 class MRTAENV(Env):
 
     def __init__(self,

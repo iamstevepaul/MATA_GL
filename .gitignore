@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 Trained_models/
+tensorboard_logger
 # C extensions
 *.so
 .idea/

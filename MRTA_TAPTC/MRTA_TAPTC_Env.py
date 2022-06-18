@@ -18,63 +18,27 @@ from persim import wasserstein, bottleneck
 import ot
 
 
-# TODO:
-#   Generate task graph -  done
-#   Generate Feasible task graph - done
-#   Generate agent network graph - done
-#   parallelize PD computation - done
-#   Trial runs for debugging - done
-#   Include agent taking decision to the state dictionary - done
-#   Introduce dynamic tasks: - done
-#       Generation of dynamic tasks - done
-#       Dynamic task graph generation - done
-#   Introduce communication uncertainties - done
-#   Update the current location of the agents during each decision making - done
-#   Finding if there was information exchange between two agents - done
-#   Variables to maintain individual peer state copies - done
-#   Update peer state copies - done
-#   Current location id is changing in a step due to some weird reason, need to check this - done
-#   Normalize the node properties - done
-#   Task status record for the agents - done
-#   Counting conflicts - done
-#   Update the context to include the record of only the agent taking decision - done
-#   Clone or copy where ever possible - done
-#   Cleanup free floating params
-#   Move TD abstraction to policy file - not feasible
-#   BiGraph matching based decoding
-#   Fix the memory issue
-#   Visualization
-#   Continuous reward
-
-
 class MRTA_TAPTC_Env(Env):
 
     def __init__(self,
                  n_locations=100,
-                 visited=[],
                  n_agents=2,
-                 agents=[],
-                 total_distance_travelled=0.0,
                  enable_dynamic_tasks = False,
                  n_initial_tasks = 30,
                  display = False,
                  enable_topological_features = False,
                  agents_info_exchange_distance_threshold=0.7
                  ):
-        # Action will be choosing the next task. (Can be a task that is alraedy done)
-        # It would be great if we can force the agent to choose not-done task
         super(MRTA_TAPTC_Env, self).__init__()
         self.n_locations = n_locations
         self.action_space = Discrete(1)
         self.locations = np.random.random((n_locations, 2))
-        # self.depot = self.locations[0, :]
-        self.visited = visited
+        self.visited = []
         self.n_agents = n_agents
-        self.agents = agents
         self.agents_prev_location = np.zeros((n_agents, 1), dtype=int)
         self.agents_next_location = np.zeros((n_agents, 1), dtype=int)
         self.agents_distance_travelled = np.zeros((n_agents, 1))
-        self.total_distance_travelled = total_distance_travelled
+        self.total_distance_travelled = 0.0
         self.agent_taking_decision = 0
         self.current_location_id = 0
         self.nodes_visited = np.zeros((n_locations, 1))
@@ -89,25 +53,16 @@ class MRTA_TAPTC_Env(Env):
         self.agents_next_decision_time = np.zeros((n_agents, 1))
         self.agents_prev_decision_time = np.zeros((n_agents, 1))
         self.agents_destination_coordinates = np.random.random((self.n_agents, 2))
-
-        self.state = 00  # call the graph encoding function + context here
-        self.observation = 00  # call the graph encoding function + context here
-
         self.total_reward = 0.0
         self.total_length = 0
 
         self.robot_work_capacity = torch.randint(1, 3, (self.n_agents, 1), dtype=torch.float).view(-1) / 100
         self.task_workload = torch.ones((self.n_locations, 1))*.2
         self.time_deadlines = (torch.tensor(np.random.random((1, n_locations)))*.3 + .7)*200
-        self.time_deadlines[0, 0] = 1000000
-        # self.location_demand = torch.ones((1, n_locations), dtype=torch.float32)
         self.task_done = torch.zeros((1, n_locations), dtype=torch.float32)
         self.deadline_passed = torch.zeros((1, n_locations), dtype=torch.float32)
-        self.depot_id = 0
-        self.active_tasks = ((self.nodes_visited == 0).nonzero())[0]
         self.available_tasks = torch.zeros((n_locations, 1), dtype=torch.float32)
 
-        #new
         if not self.enable_dynamic_tasks:
             n_initial_tasks = n_locations
         self.n_initial_tasks = n_initial_tasks
@@ -128,26 +83,17 @@ class MRTA_TAPTC_Env(Env):
 
         self.conflicts_count = 0
 
+        self.task_graph_node_dim = self.generate_task_graph()[0].shape[1]
+        self.agent_node_dim = self.generate_agents_graph()[0].shape[1]
 
         if self.enable_topological_features:
             self.observation_space = Dict(
                 dict(
-                    # location=Box(low=0, high=1, shape=self.locations.shape),
-                    # depot=Box(low=0, high=1, shape=(1, 2)),
                     mask=Box(low=0, high=1, shape=self.nodes_visited.shape),
-                    # agents_destination_coordinates=Box(low=0, high=1, shape=self.agents_destination_coordinates.shape),
-                    # agent_taking_decision_coordinates=Box(low=0, high=1, shape=self.agents_destination_coordinates[
-                    #                                                            self.agent_taking_decision, :].reshape(1,
-                    #                                                                                                   2).shape),
                     topo_laplacian=Box(low=0, high=1, shape=(n_locations,n_locations)),
                     task_graph_nodes=Box(low=0, high=1, shape=(n_locations - 1, 5)),
-                    # task_graph_adjacency=Box(low=0, high=1, shape=(n_locations - 1, n_locations - 1)),
                     agents_graph_nodes=Box(low=0, high=1, shape=(n_agents, 5)),
-                    # agents_graph_adjacency=Box(low=0, high=1, shape=(n_agents, n_agents)),
-                    # nodes_visited=Box(low=0, high=1, shape=self.nodes_visited.shape),
                     agent_taking_decision=Box(low=0, high=n_agents, shape=(1,), dtype=int),
-                    # first_dec=MultiBinary(1),
-                    # available_tasks=Box(low=0, high=1, shape=self.available_tasks.shape)
                 ))
             self.topo_laplacian = None
             state = self.get_encoded_state()
@@ -157,29 +103,13 @@ class MRTA_TAPTC_Env(Env):
         else:
             self.observation_space = Dict(
                 dict(
-                    # location=Box(low=0, high=1, shape=self.locations.shape),
-                    # depot=Box(low=0, high=1, shape=(1, 2)),
                     mask=Box(low=0, high=1, shape=self.nodes_visited.shape),
-                    # agents_destination_coordinates=Box(low=0, high=1, shape=self.agents_destination_coordinates.shape),
-                    # agent_taking_decision_coordinates=Box(low=0, high=1, shape=self.agents_destination_coordinates[
-                    #                                                            self.agent_taking_decision, :].reshape(1,
-                    #                                                                                                   2).shape),
-                    # topo_laplacian=Box(low=0, high=100000, shape=(n_locations-1,n_locations-1)),
                     task_graph_nodes=Box(low=0, high=1, shape=(n_locations,5)),
                     task_graph_adjacency=Box(low=0, high=1, shape=(n_locations, n_locations)),
                     agents_graph_nodes=Box(low=0, high=1, shape=(n_agents, 5)),
-                    # agents_graph_adjacency=Box(low=0, high=1, shape=(n_agents, n_agents)),
-                    # nodes_visited=Box(low=0, high=1, shape=self.nodes_visited.shape),
                     agent_taking_decision=Box(low=0, high=n_agents, shape=(1,), dtype=int),
-                    # first_dec = MultiBinary(1),
-                    # available_tasks=Box(low=0, high=1, shape=self.available_tasks.shape)
                 ))
-
-
         self.distance = 0.0
-
-
-
         self.done = False
 
     def get_state(self):
@@ -195,41 +125,19 @@ class MRTA_TAPTC_Env(Env):
         agents_graph_nodes, agents_graph_adjacency = self.generate_agents_graph()
         if self.enable_topological_features:
             state = {
-                # 'location': self.locations,
-                # 'depot': self.depot.reshape(1, 2),
                 'mask': mask,
-                # 'agents_destination_coordinates': self.agents_destination_coordinates,
-                # 'agent_taking_decision_coordinates': self.agents_destination_coordinates[
-                #                                      self.agent_taking_decision, :].reshape(1,
-                #                                                                             2),
                 'task_graph_nodes': task_graph_nodes,
-                # 'task_graph_adjacency':task_graph_adjacency,
                 'topo_laplacian': self.topo_laplacian,
                 'agents_graph_nodes':agents_graph_nodes,
-                # 'agents_graph_adjacency':agents_graph_adjacency,
-                # 'nodes_visited':self.nodes_visited,
-                # 'first_dec': self.first_dec,
                 'agent_taking_decision': self.agent_taking_decision,
-                # 'available_tasks':self.available_tasks
             }
-            # topo_laplacian = self.get_topo_laplacian(state)
         else:
             state = {
-                # 'location': self.locations,
-                # 'depot': self.depot.reshape(1, 2),
                 'mask': mask,
-                # 'agents_destination_coordinates': self.agents_destination_coordinates,
-                # 'agent_taking_decision_coordinates': self.agents_destination_coordinates[
-                #                                      self.agent_taking_decision, :].reshape(1,
-                #                                                                             2),
                 'task_graph_nodes': task_graph_nodes,
                 'task_graph_adjacency':task_graph_adjacency,
                 'agents_graph_nodes': agents_graph_nodes,
-                # 'agents_graph_adjacency': agents_graph_adjacency,
-                # 'nodes_visited': self.nodes_visited,
-                # 'first_dec': self.first_dec,
                 'agent_taking_decision': self.agent_taking_decision,
-                # 'available_tasks':self.available_tasks
             }
         return state
 
@@ -243,10 +151,7 @@ class MRTA_TAPTC_Env(Env):
         return adj_normalized
 
     def get_topo_laplacian(self, data):
-        # active_tasks = ((data['nodes_visited'] == 0).nonzero())[0]
         X_loc = (data['task_graph_nodes'].numpy())[None,:]
-        # X_loc = X_loc[:, active_tasks[1:] - 1, :]
-        # distance_matrix = ((((X_loc[:, :, None] - X_loc[:, None]) ** 2).sum(-1)) ** .5)[0]
         distance_matrix = torch.cdist(torch.tensor(X_loc), torch.tensor(X_loc),p=2)[0]
 
         adj_ = np.float32(distance_matrix < 0.3)
@@ -298,9 +203,7 @@ class MRTA_TAPTC_Env(Env):
     def step(self, action):
         # print("Time: ", self.time)
         # print("New action taken from the available list: ", action)
-        # action = self.active_tasks[action]
         # print("Actual action: ", action)
-        # self.first_dec = False
         # print(self.agent_taking_decision, action)
 
 
@@ -313,32 +216,22 @@ class MRTA_TAPTC_Env(Env):
         if self.nodes_visited[action] == 1:
 
             self.conflicts_count += 1 # if the chosen task was already visited (according to ground truth, then increase the conflict count)
-            # print("Conflict:", self.conflicts_count)
-            # print("Agents record updated")
-            # print("Before: ", self.agents_record_nodes_visited[agent_taking_decision, :])
+
             self.agents_record_nodes_visited[agent_taking_decision, action] = 1
-            # print("After: ", self.agents_record_nodes_visited[agent_taking_decision, :])
 
         self.total_length = self.total_length + 1
 
         reward = 0.0
         info = {}
         travel_distance = self.distance_matrix[current_location_id, action].copy()
-        # self.agents_current_range[0, agent_taking_decision] -= travel_distance
         self.agents_prev_decision_time[agent_taking_decision, 0] = self.time
         self.visited.append((action, self.agent_taking_decision))
-        # if action == self.depot_id:
-        #     # self.agents_current_payload[0, agent_taking_decision] = self.max_capacity
-        #     # self.agents_current_range[0, agent_taking_decision] = self.max_range
-        #     self.nodes_visited[action] = 0
-        #     self.agents_record_nodes_visited[self.agent_taking_decision, action] = 0
         work_time = self.task_workload[action,0]/self.robot_work_capacity[agent_taking_decision]
         if self.nodes_visited[action] != 1:
 
             distance_covered = self.total_distance_travelled + travel_distance
             self.total_distance_travelled = distance_covered
             self.agents_distance_travelled[agent_taking_decision] += travel_distance
-            # self.agents_current_payload[0, agent_taking_decision] -= self.location_demand[0, action].item()
 
             # update the  status of the node_visited that was chosen
             self.nodes_visited[action] = 1
@@ -348,14 +241,8 @@ class MRTA_TAPTC_Env(Env):
             else:
                 self.task_done[0, action] = 1
 
-            # print(sum(self.nodes_visited))
-            # reward = -travel_distance
-            # reward = -travel_distance#1/(travel_distance*100 + 10e-5)
             self.total_reward += reward
 
-
-            # else:
-            # reward = 0.0
 
         # update destination of robot taking decision
         self.agents_next_location[agent_taking_decision] = action
@@ -377,7 +264,6 @@ class MRTA_TAPTC_Env(Env):
         prev_time = self.time
 
         self.time = self.agents_next_decision_time[self.agent_taking_decision][0].copy()
-        # print(prev_time, self.time)
         vec = (self.agents_destination_coordinates - self.agents_previous_recorded_coordinates).copy()
         vec_unit = (vec / np.linalg.norm(vec, axis=1).reshape((self.n_agents, 1))).copy()
         where_are_NaNs = np.isnan(vec_unit)
@@ -406,7 +292,6 @@ class MRTA_TAPTC_Env(Env):
             # print("nodes visisted: ", self.nodes_visited)
             self.agents_record_nodes_visited[:, deadlines_passed_ids[:, 1], 0] = 1 # updating the state record of all the agents when some of the deadlines are passed
 
-        self.active_tasks = ((self.nodes_visited == 0).nonzero())[0]
         # print("Active tasks after update: ", self.active_tasks)
         # print(sum(self.nodes_visited))
 
@@ -416,25 +301,16 @@ class MRTA_TAPTC_Env(Env):
         # print(sum(self.nodes_visited))
         # print(self.n_locations)
         if sum(self.nodes_visited) == self.n_locations:
-            # reward = 1/(self.total_distance_travelled + 10e-5) - (self.total_length - self.n_locations+1)/self.n_locations
-            # 1/(self.total_distance_travelled**2+ 10e-5)## change this with the distance travelled
-            # self.total_reward += reward
-            # final_distance_to_depot = torch.cdist(torch.tensor(self.agents_destination_coordinates), torch.tensor(self.depot[None,:])).sum().item()
-            # if self.task_done.sum() == self.n_locations :
-            #     reward = -(self.total_distance_travelled)/ (1.41 * self.n_locations)
-            # else:
-            reward = -((self.n_locations) - self.task_done.sum())/((self.n_locations))
+            reward = -(self.n_locations - self.task_done.sum())/(self.n_locations)
             self.total_reward = reward
             self.done = True
-            # if self.total_length == self.n_locations-1:
-            #     reward = reward + 1
+
             info = {"is_success": self.done,
                     "episode": {
                         "r": self.total_reward,
                         "l": self.total_length
                     }
                     }
-
 
         return self.get_encoded_state(), reward, self.done, info
 
@@ -517,42 +393,16 @@ class MRTA_TAPTC_Env(Env):
 
 
     def get_mask(self):
-        # masking:
-        #   nodes visited - done
-        #   capacity = 0 -> depot - done
-        #   Range not sufficient to reach depot -> depot
-        #   deadlines passed done
-        #    if current location is depot, then mask the depot - done
+
         agent_taking_decision = self.agent_taking_decision
-        # mask = self.nodes_visited.copy()
         mask = self.agents_record_nodes_visited[agent_taking_decision].numpy().copy() # the node visited record for the agent taking decision is being used
-        # current_location_id = self.current_location_id
-        # if self.agents_current_payload[0, agent_taking_decision] == 0:
-        #     mask[1:,0] = 1
-        #     mask[0, 0] = 0
-        # elif current_location_id == self.depot_id:
-        #     mask[0, 0] = 1
-
-            # unreachbles = (self.distance_matrix[0,:] + self.distance_matrix[current_location_id,:] > self.agents_current_range[0, agent_taking_decision].item()).nonzero()
-            # if unreachbles[0].shape[0] != 0:
-                # mask[unreachbles[0], 0] = 1
         mask = np.logical_or(mask, (self.deadline_passed.T).numpy()).astype(mask.dtype)
-            # if mask[1:,0].prod() == 1: # if no other feasible locations, then go to depot
-            #     mask[0,0] = 0
-
-
-
-        # if mask.prod() != 0.0:
-        #     mask[0,0] = 0
-
         mask = mask*(self.available_tasks).numpy() # masking unavailable tasks
         return mask
 
 
     def generate_task_graph(self):
 
-        # if self.active_tasks.shape == 0:
-        #     print("Error....")
         locations = torch.tensor(self.locations)
         time_deadlines = (self.time_deadlines.T).clone()
         # location_demand = (self.location_demand.T).clone()
@@ -578,11 +428,6 @@ class MRTA_TAPTC_Env(Env):
         adjacency_matrix = adjacency_matrix * (distance_matrix > 0).to(torch.float32) # setting diagonal elements as 0
         return node_properties, adjacency_matrix
 
-    # def generate_feasible_task_graph(self, current_node_properties, current_ids):
-    #     pass
-
-
-
     def render(self, action):
 
         pass
@@ -594,7 +439,6 @@ class MRTA_TAPTC_Env(Env):
         self.action_space = Discrete(1)
         self.locations = np.random.random((self.n_locations, 2))
         self.visited = []
-        self.agents = []
         self.agent_taking_decision = 1
         self.agents_prev_location = np.zeros((self.n_agents, 1), dtype=int)
         self.agents_next_location = np.zeros((self.n_agents, 1), dtype=int)
@@ -618,12 +462,9 @@ class MRTA_TAPTC_Env(Env):
         self.task_workload = torch.ones((self.n_locations, 1))*.2
         self.time_deadlines = (torch.tensor(np.random.random((1, self.n_locations))) * .3 + .7) * 200
         self.time_deadlines[0, 0] = 1000000 # large number for depot,
-        # self.location_demand = torch.ones((1, self.n_locations), dtype=torch.float32)
         self.task_done = torch.zeros((1, self.n_locations), dtype=torch.float32)
         self.deadline_passed = torch.zeros((1, self.n_locations), dtype=torch.float32)
-        self.active_tasks = ((self.nodes_visited == 0).nonzero())[0]
         # Reset the number of not-done tasks
-        # self.unvisited = self.all_task
         self.done = False
 
         if not self.enable_dynamic_tasks: # this conditional might be unnecessary
@@ -643,7 +484,6 @@ class MRTA_TAPTC_Env(Env):
         self.agents_velocity = torch.zeros((self.n_agents, 1), dtype=torch.float32)
 
         self.agents_record_nodes_visited = torch.zeros((self.n_agents, self.n_locations, 1), dtype=torch.float32)
-
 
         self.conflicts_count = 0
         state = self.get_encoded_state()
