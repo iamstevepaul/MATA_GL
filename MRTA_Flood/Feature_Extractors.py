@@ -23,9 +23,7 @@ class MLP(nn.Module):
         self.init_embed_depot = nn.Linear(2, features_dim)
         self.activ = nn.Tanh()
 
-
     def forward(self, data, mask=None):
-
         X = data['task_graph_nodes']
         F0 = self.init_embed(X)
         F0 = self.activ(self.self.layer_1(F0))
@@ -36,7 +34,6 @@ class MLP(nn.Module):
             h,  # (batch_size, graph_size, embed_dim)
             h.mean(dim=1),  # average to get embedding of graph, (batch_size, embed_dim)
         )
-
 
 class CAPAM(nn.Module):
 
@@ -66,9 +63,14 @@ class CAPAM(nn.Module):
         # active_tasks = ((data['nodes_visited'] == 0).nonzero())[:, 1]
         # print("Active tasks before node embedding: ",active_tasks)
         X = data['task_graph_nodes']
-
-        num_samples, num_locations, _ = X.size()
-
+        X_loc = X
+        # distance_matrix = ((((X_loc[:, :, None] - X_loc[:, None]) ** 2).sum(-1)) ** .5)
+        # distance_matrix = torch.cdist(X_loc, X_loc)
+        num_samples, num_locations, _ = X_loc.size()
+        # A = ((1 / distance_matrix) * (torch.eye(num_locations, device=distance_matrix.device).expand(
+        #     (num_samples, num_locations, num_locations)) - 1).to(torch.bool).to(torch.float))
+        # A[A != A] = 0
+        # A = 1 / (1 + distance_matrix)
         A = data['task_graph_adjacency']
         # A = data['task_graph_adjacency']
         D = torch.mul(torch.eye(num_locations, device=X.device).expand((num_samples, num_locations, num_locations)),
@@ -80,7 +82,7 @@ class CAPAM(nn.Module):
         # Layer 1
 
         # p = 3
-        F0 = self.init_embed(X)
+        F0 = self.init_embed(X_loc)
         # F0_squared = torch.mul(F0[:, :, :], F0[:, :, :])
         # K = 3
         L = D - A
@@ -99,8 +101,8 @@ class CAPAM(nn.Module):
 
         F_final = self.activ(self.W_F(F1))
 
-        # init_depot_embed = self.init_embed_depot(data['depot'])[:]
-        h = F_final # torch.cat((init_depot_embed, F_final), 1)
+        init_depot_embed = self.init_embed_depot(data['depot'])[:]
+        h = torch.cat((init_depot_embed, F_final), 1)
         # print("Shape of the node embeddings: ", h.shape)
         return (
             h,  # (batch_size, graph_size, embed_dim)
@@ -133,6 +135,10 @@ class GCAPCNFeatureExtractor(nn.Module):
         self.normalization_1 = nn.BatchNorm1d(features_dim * n_p)
 
         self.W_F = nn.Linear(features_dim * n_p, features_dim)
+        self.agent_decision_context = torch.nn.Linear(2, features_dim)
+        self.agent_context = torch.nn.Linear(2, features_dim)
+        self.agent_mask_encoding = torch.nn.Linear(11, features_dim)
+
         self.activ = nn.Tanh()
 
     def forward(self, data, mask=None):

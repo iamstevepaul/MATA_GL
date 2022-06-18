@@ -29,7 +29,7 @@ from stable_baselines_al.common.distributions import (
     make_proba_distribution,
 )
 from stable_baselines_al.common.utils import get_device, is_vectorized_observation, obs_as_tensor
-from GCAPCN import GCAPCNFeatureExtractor, CAPAM, MLP
+from Feature_Extractors import GCAPCNFeatureExtractor, CAPAM, MLP
 
 #   TODO:
 #   Make the policy network task independent

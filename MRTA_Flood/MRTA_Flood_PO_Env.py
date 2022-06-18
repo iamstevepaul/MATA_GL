@@ -17,7 +17,7 @@ import scipy.sparse as sp
 from persim import wasserstein, bottleneck
 import ot
 
-class MRTAENV_PO(Env):
+class MRTA_Flood_PO_Env(Env):
 
     def __init__(self,
                  n_locations=100,
@@ -36,7 +36,7 @@ class MRTAENV_PO(Env):
                  ):
         # Action will be choosing the next task. (Can be a task that is alraedy done)
         # It would be great if we can force the agent to choose not-done task
-        super(MRTAENV_PO, self).__init__()
+        super(MRTA_Flood_PO_Env, self).__init__()
         self.n_locations = n_locations
         self.action_space = Discrete(1)
         self.locations = np.random.random((n_locations, 2))
@@ -59,13 +59,10 @@ class MRTAENV_PO(Env):
 
         self.distance_matrix = np.linalg.norm(self.locations[:, None, :] - self.locations[None, :, :], axis=-1)
         self.time = 0.0
-        self.agent_speed = 0.01
+        self.agent_speed = 0.01 # this param should be handles=d carefully. Makesure this is the same for the baselines
         self.agents_next_decision_time = np.zeros((n_agents, 1))
         self.agents_prev_decision_time = np.zeros((n_agents, 1))
         self.agents_destination_coordinates = np.ones((n_agents, 1)) * self.depot
-
-        self.state = 00  # call the graph encoding function + context here
-        self.observation = 00  # call the graph encoding function + context here
 
         self.total_reward = 0.0
         self.total_length = 0
@@ -104,6 +101,9 @@ class MRTAENV_PO(Env):
         self.agents_record_nodes_visited = torch.zeros((self.n_agents,self.n_locations, 1), dtype=torch.float32)
 
         self.conflicts_count = 0
+
+        self.task_graph_node_dim = self.generate_task_graph()[0].shape[1]
+        self.agent_node_dim = self.generate_agents_graph()[0].shape[1]
 
 
         if self.enable_topological_features:

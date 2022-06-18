@@ -17,7 +17,7 @@ import scipy.sparse as sp
 from persim import wasserstein, bottleneck
 import ot
 
-class MRTAENV(Env):
+class MRTA_Flood_Env(Env):
 
     def __init__(self,
                  n_locations=100,
@@ -35,7 +35,7 @@ class MRTAENV(Env):
                  ):
         # Action will be choosing the next task. (Can be a task that is alraedy done)
         # It would be great if we can force the agent to choose not-done task
-        super(MRTAENV, self).__init__()
+        super(MRTA_Flood_Env, self).__init__()
         self.n_locations = n_locations
         self.action_space = Discrete(1)
         self.locations = np.random.random((n_locations, 2))
@@ -58,13 +58,10 @@ class MRTAENV(Env):
 
         self.distance_matrix = np.linalg.norm(self.locations[:, None, :] - self.locations[None, :, :], axis=-1)
         self.time = 0.0
-        self.agent_speed = 0.01
+        self.agent_speed = 0.01 # this param should be handles=d carefully. Makesure this is the same for the baselines
         self.agents_next_decision_time = np.zeros((n_agents, 1))
         self.agents_prev_decision_time = np.zeros((n_agents, 1))
         self.agents_destination_coordinates = np.ones((n_agents, 1)) * self.depot
-
-        self.state = 00  # call the graph encoding function + context here
-        self.observation = 00  # call the graph encoding function + context here
 
         self.total_reward = 0.0
         self.total_length = 0
@@ -92,6 +89,9 @@ class MRTAENV(Env):
         self.time_start[0,0:self.n_initial_tasks] = 0
         self.display = display
         self.enable_topological_features = enable_topological_features
+
+        self.task_graph_node_dim = self.generate_task_graph()[0].shape[1]
+        self.agent_node_dim = self.generate_agents_graph()[0].shape[1]
 
         if self.enable_topological_features:
             self.observation_space = Dict(
@@ -426,53 +426,51 @@ class MRTAENV(Env):
         # Show the locations
 
         plt.plot(self.locations[0, 0], self.locations[0, 1], 'bo')
-        for i in range(1,self.n_locations):
-            if self.available_tasks[i,0] == 1:
-                if self.task_done[0,i] == 1:
+        for i in range(1, self.n_locations):
+            if self.available_tasks[i, 0] == 1:
+                if self.task_done[0, i] == 1:
                     plt.plot(self.locations[i, 0], self.locations[i, 1], 'go')
-                elif self.nodes_visited[i,0] == 0 and self.deadline_passed[0,i] == 0:
+                elif self.nodes_visited[i, 0] == 0 and self.deadline_passed[0, i] == 0:
                     plt.plot(self.locations[i, 0], self.locations[i, 1], 'ro')
-                elif self.deadline_passed[0,i] == 1:
+                elif self.deadline_passed[0, i] == 1:
                     plt.plot(self.locations[i, 0], self.locations[i, 1], 'ko')
         plt.plot(self.locations[action, 0], self.locations[action, 1], 'mo')
-        prev_loc = self.locations[self.agents_prev_location][:,0,:]
-        next_loc = self.locations[self.agents_next_location][:,0,:]
+        prev_loc = self.locations[self.agents_prev_location][:, 0, :]
+        next_loc = self.locations[self.agents_next_location][:, 0, :]
         diff = next_loc - prev_loc
         velocity = np.zeros((self.n_agents, 2))
         for i in range(self.n_agents):
-            if diff[i,0] == 0 and diff[i,1] == 0:
-                velocity[i,0] = 0
+            if diff[i, 0] == 0 and diff[i, 1] == 0:
+                velocity[i, 0] = 0
                 velocity[i, 1] = 0
             else:
-                direction = diff[i,:]/(np.linalg.norm(diff[i,:]))
-                velocity[i, :] = direction*self.agent_speed
+                direction = diff[i, :] / (np.linalg.norm(diff[i, :]))
+                velocity[i, :] = direction * self.agent_speed
 
         prev_time = self.time
-        current_agent_locations = prev_loc + (prev_time - self.agents_prev_decision_time)*velocity
-
+        current_agent_locations = prev_loc + (prev_time - self.agents_prev_decision_time) * velocity
 
         agent_taking_decision = np.argmin(self.agents_next_decision_time)
         # current_location_id = self.agents_next_location[agent_taking_decision][0].copy()
         next_time = self.agents_next_decision_time[agent_taking_decision][0].copy()
-        delta_t = (next_time - prev_time)/10
+        delta_t = (next_time - prev_time) / 10
         curr_time = prev_time
-        for i in range(10):
+        # for i in range(10):
 
-            current_agent_locations = current_agent_locations + velocity*delta_t
-            plt.plot(current_agent_locations[:,0], current_agent_locations[:,0], 'mv')
-            curr_time = curr_time + delta_t
-            deadlines_passed_ids = (self.time_deadlines < torch.tensor(curr_time)).nonzero()
-            time.sleep(0.01)
-
-
+        current_agent_locations = current_agent_locations + velocity * delta_t
+        plt.plot(current_agent_locations[:, 0], current_agent_locations[:, 1], 'mv')
+        curr_time = curr_time + delta_t
+        deadlines_passed_ids = (self.time_deadlines < torch.tensor(curr_time)).nonzero()
+        time.sleep(0.01)
 
         # print(prev_loc)
         # print(next_loc)
         # print("***********")
         for i in range(self.n_agents):
-            plt.arrow(prev_loc[i,0],prev_loc[i,1], diff[i,0], diff[i,1])
+            plt.arrow(prev_loc[i, 0], prev_loc[i, 1], diff[i, 0], diff[i, 1])
         plt.draw()
         time.sleep(1)
+        plt.show()
         plt.clf()
         #   Grey as unavailable
         #   Red as active

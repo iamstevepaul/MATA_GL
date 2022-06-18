@@ -10,7 +10,7 @@ import numpy as np
 import gym
 from stable_baselines_al import PPO, A2C
 # from stable_baselines.common import make_vec_env
-from mrta_flood_env import MRTAENV
+from MRTA_Flood_Env import MRTA_Flood_Env
 import json
 import datetime as dt
 import torch
@@ -22,7 +22,7 @@ import ot
 from CustomPolicies import ActorCriticGCAPSPolicy
 # from CustomPolicies import ActorCriticGCAPSPolicy
 from stable_baselines_al.common.utils import set_random_seed
-
+from training_config import get_config
 
 from stable_baselines_al.common.vec_env import DummyVecEnv, SubprocVecEnv
 
@@ -60,67 +60,75 @@ class Normalization(nn.Module):
             return input
 
 
+config = get_config()
 
-env = DummyVecEnv([lambda: MRTAENV(
-        n_locations = 71,
-        n_agents = 10,
-        enable_dynamic_tasks=False,
+env = DummyVecEnv([lambda: MRTA_Flood_Env(
+        n_locations = config.n_locations,
+        n_agents = config.n_robots,
+        max_capacity = config.max_capacity,
+        max_range = config.max_range,
+        enable_dynamic_tasks=config.enable_dynamic_tasks,
         display = False,
-        enable_topological_features = False
+        enable_topological_features = config.enable_topological_features
 )])
-
-# n_envs = 4
-# env = make_vec_env(mTSPEnv, n_envs=n_envs, env_kwargs={"n_locations":21, "n_agents":5})
-# num_cpu = 6
-# env = SubprocVecEnv([make_env(i) for i in range(num_cpu)])
-
-# model = PPO('MlpPolicy',
-#     env,
-#     gamma=1.00,
-#     verbose=1,
-#     n_epochs=10,
-#     batch_size=10000,
-#     tensorboard_log="logger/",
-#     create_eval_env=True,
-#     n_steps=20000)
 
 policy_kwargs=dict(
     # features_extractor_class=GCAPCNFeatureExtractor,
-    features_extractor_kwargs=dict(features_dim=128,node_dim=2),
-    # activation_fn=torch.nn.LeakyReLU,
-    # net_arch=[dict(vf=[128,128])]
-)
+    features_extractor_kwargs=dict(
+        feature_extractor=config.node_encoder,
+        features_dim=config.features_dim,
+        K=config.K,
+        Le=config.Le,
+        P=config.P,
+        node_dim=env.envs[0].task_graph_node_dim,
+        agent_node_dim=env.envs[0].agent_node_dim,
+        n_heads=config.n_heads,
+        tanh_clipping=config.tanh_clipping,
+        mask_logits=config.mask_logits,
+        temp=config.temp
+))
+
+if config.enable_dynamic_tasks:
+    task_type = "D"
+else:
+    task_type = "ND"
+
+if config.node_encoder == "CAPAM" or config.node_encoder == "MLP":
+    tb_logger_location = config.logger+config.problem\
+                     + "/" + config.node_encoder + "/" \
+                    + config.problem\
+                          + "_nloc_" + str(config.n_locations)\
+                         + "_nrob_" + str(config.n_robots) + "_" + task_type + "_"\
+                         + config.node_encoder\
+                         + "_K_" + str(config.K) \
+                         + "_P_" + str(config.P) + "_Le_" + str(config.Le) \
+                         + "_h_" + str(config.features_dim)
+    save_model_loc = config.model_save+config.problem\
+                     + "/" + config.node_encoder + "/" \
+                    + config.problem\
+                          + "_nloc_" + str(config.n_locations)\
+                         + "_nrob_" + str(config.n_robots) + "_" + task_type + "_"\
+                         + config.node_encoder\
+                         + "_K_" + str(config.K) \
+                         + "_P_" + str(config.P) + "_Le_" + str(config.Le) \
+                         + "_h_" + str(config.features_dim)
 
 model = PPO(
     ActorCriticGCAPSPolicy,
     env,
-    gamma=1.00,
+    gamma=config.gamma,
     verbose=1,
-    n_epochs=100,
-    batch_size=10000,
-    tensorboard_log="logger/",
+    n_epochs=config.n_epochs,
+    batch_size=config.batch_size,
+    tensorboard_log=tb_logger_location,
     # create_eval_env=True,
-    n_steps=20000,
-    learning_rate=0.000001,
+    n_steps=config.n_steps,
+    learning_rate=config.learning_rate,
     policy_kwargs = policy_kwargs,
-    ent_coef=0.0001,
-    vf_coef=0.5
+    ent_coef=config.ent_coef,
+    vf_coef=config.val_coef
 )
-#
-# model = A2C(
-#     ActorCriticGCAPSPolicy,
-#     env,
-#     gamma=1.00,
-#     verbose=1,
-#     tensorboard_log="logger/",
-#     create_eval_env=True,
-#     n_steps=20000
-# )
-
-model.learn(total_timesteps=2000000)
+model.learn(total_timesteps=config.total_steps)
 
 obs = env.reset()
-
-log_dir = "."
-model.save(log_dir + "r1")
-model = PPO.load(log_dir + "r1", env=env)
+model.save(save_model_loc)
