@@ -21,6 +21,8 @@ def get_config(args=None):
     parser.add_argument('--enable_topological_features', type=bool, default=False,
                         help="Setting this as true, a graph laplacian based on topological features will be calculated"
                              "and used for the node embeddings")
+    parser.add_argument('--agents_info_exchange_distance_threshold', type=float, default=0.4,
+                        help='Max distance for information exchange between robots')
     # Policy parameters
     parser.add_argument('--features_dim', type=int, default=128, help="Embedding length")
     parser.add_argument('--node_encoder', type=str, default='CAPAM',

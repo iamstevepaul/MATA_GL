@@ -69,7 +69,8 @@ env = DummyVecEnv([lambda: MRTA_Flood_PO_Env(
         max_range = config.max_range,
         enable_dynamic_tasks=config.enable_dynamic_tasks,
         display = False,
-        enable_topological_features = config.enable_topological_features
+        enable_topological_features = config.enable_topological_features,
+        agents_info_exchange_distance_threshold = config.agents_info_exchange_distance_threshold
 )])
 
 # n_envs = 4
