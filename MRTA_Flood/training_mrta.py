@@ -19,6 +19,7 @@ from topology import *
 import scipy.sparse as sp
 from persim import wasserstein, bottleneck
 import ot
+import pickle
 from CustomPolicies import ActorCriticGCAPSPolicy
 # from CustomPolicies import ActorCriticGCAPSPolicy
 from stable_baselines_al.common.utils import set_random_seed
@@ -59,6 +60,10 @@ class Normalization(nn.Module):
             assert self.normalizer is None, "Unknown normalizer type"
             return input
 
+def as_tensor(observation):
+    for key, obs in observation.items():
+        observation[key] = torch.tensor(obs)
+    return observation
 
 config = get_config()
 
@@ -132,3 +137,61 @@ model.learn(total_timesteps=config.total_steps)
 
 obs = env.reset()
 model.save(save_model_loc)
+
+model = PPO.load(save_model_loc, env=env)
+env = DummyVecEnv([lambda: MRTA_Flood_Env(
+        n_locations = config.n_locations,
+        n_agents = config.n_robots,
+        max_capacity = config.max_capacity,
+        max_range = config.max_range,
+        enable_dynamic_tasks=config.enable_dynamic_tasks,
+        display = False,
+        enable_topological_features = config.enable_topological_features
+)])
+
+path =  "Test_data/" + config.problem + "/"
+
+file_name = path + config.problem\
+                        + "_nloc_" + str(config.n_locations)\
+                         + "_nrob_" + str(config.n_robots) + "_" + task_type + ".pkl"
+with open(file_name, 'rb') as fl:
+    test_envs = pickle.load(fl)
+total_rewards_list = []
+distance_list = []
+total_tasks_done_list = []
+for env in test_envs:
+    env.envs[0].training = False
+    model.env = env
+    obs = env.reset()
+    obs = as_tensor(obs)
+    for i in range(1000000):
+            model.policy.set_training_mode(False)
+            action = model.policy._predict(obs)
+            obs, reward, done, _ = env.step(action)
+            obs = as_tensor(obs)
+            if done:
+                    total_rewards_list.append(reward)
+                    distance_list.append(env.envs[0].total_distance_travelled)
+                    total_tasks_done_list.append(env.envs[0].task_done.sum())
+                    break
+
+
+
+total_rewards_array = np.array(total_rewards_list)
+distance_list_array = np.array(distance_list)
+total_tasks_done_array = np.array(total_tasks_done_list)
+encoder = config.node_encoder\
+                         + "_K_" + str(config.K) \
+                         + "_P_" + str(config.P) + "_Le_" + str(config.Le) \
+                         + "_h_" + str(config.features_dim)
+data = {
+    "problem": config.problem,
+    "n_locations": config.n_locations, # will change
+    "dynamic_task": config.enable_dynamic_tasks,
+    "policy":encoder,
+    "total_tasks_done": total_tasks_done_array,
+    "total_rewards": total_rewards_array,
+    "distance": distance_list_array
+}
+
+## open file and save

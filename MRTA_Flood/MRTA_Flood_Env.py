@@ -31,7 +31,8 @@ class MRTA_Flood_Env(Env):
                  enable_dynamic_tasks = False,
                  n_initial_tasks = 30,
                  display = False,
-                 enable_topological_features = False
+                 enable_topological_features = False,
+                 training = True
                  ):
         # Action will be choosing the next task. (Can be a task that is alraedy done)
         # It would be great if we can force the agent to choose not-done task
@@ -118,6 +119,7 @@ class MRTA_Flood_Env(Env):
             topo_laplacian = self.get_topo_laplacian(state)
             state["topo_laplacian"] = topo_laplacian
             self.topo_laplacian = topo_laplacian
+
         else:
             self.observation_space = Dict(
                 dict(
@@ -139,7 +141,7 @@ class MRTA_Flood_Env(Env):
                     # available_tasks=Box(low=0, high=1, shape=self.available_tasks.shape)
                 ))
 
-
+        self.training = training
         self.distance = 0.0
 
 
@@ -486,52 +488,53 @@ class MRTA_Flood_Env(Env):
 
 
     def reset(self):
-        self.action_space = Discrete(1)
-        self.locations = np.random.random((self.n_locations, 2))
-        self.depot = self.locations[0, :]
-        self.visited = []
-        self.agents = []
-        self.agent_taking_decision = 1
-        self.agents_location = []
-        self.agents_prev_location = np.zeros((self.n_agents, 1), dtype=int)
-        self.agents_next_location = np.zeros((self.n_agents, 1), dtype=int)
-        self.agents_distance_travelled = np.zeros((self.n_agents, 1))
-        self.total_distance_travelled = 0.0
-        self.agent_taking_decision = 0
-        self.current_location_id = 0
-        self.nodes_visited = np.zeros((self.n_locations, 1))
-        self.agents_distance_to_destination = np.zeros(
-            (self.n_agents, 1))  # tracks the distance to destination from its current point for all robots
+        if self.training:
+            self.action_space = Discrete(1)
+            self.locations = np.random.random((self.n_locations, 2))
+            self.depot = self.locations[0, :]
+            self.visited = []
+            self.agents = []
+            self.agent_taking_decision = 1
+            self.agents_location = []
+            self.agents_prev_location = np.zeros((self.n_agents, 1), dtype=int)
+            self.agents_next_location = np.zeros((self.n_agents, 1), dtype=int)
+            self.agents_distance_travelled = np.zeros((self.n_agents, 1))
+            self.total_distance_travelled = 0.0
+            self.agent_taking_decision = 0
+            self.current_location_id = 0
+            self.nodes_visited = np.zeros((self.n_locations, 1))
+            self.agents_distance_to_destination = np.zeros(
+                (self.n_agents, 1))  # tracks the distance to destination from its current point for all robots
 
-        self.distance_matrix = np.linalg.norm(self.locations[:, None, :] - self.locations[None, :, :], axis=-1)
-        self.time = 0.0
-        self.agent_speed = 0.01
-        self.agents_next_decision_time = np.zeros((self.n_agents, 1))
-        self.agents_prev_decision_time = np.zeros((self.n_agents, 1))
-        self.agents_destination_coordinates = np.ones((self.n_agents, 1)) * self.depot
-        self.total_reward = 0.0
-        self.total_length = 0
-        # self.first_dec = True
-        self.agents_current_range = torch.ones((1, self.n_agents), dtype=torch.float32) * self.max_range
-        self.agents_current_payload = torch.ones((1, self.n_agents), dtype=torch.float32) * self.max_capacity
-        self.time_deadlines = (torch.tensor(np.random.random((1, self.n_locations))) * .3 + .7) * 200
-        self.time_deadlines[0, 0] = 1000000 # large number for depot,
-        self.location_demand = torch.ones((1, self.n_locations), dtype=torch.float32)
-        self.task_done = torch.zeros((1, self.n_locations), dtype=torch.float32)
-        self.deadline_passed = torch.zeros((1, self.n_locations), dtype=torch.float32)
-        self.active_tasks = ((self.nodes_visited == 0).nonzero())[0]
-        # Reset the number of not-done tasks
-        # self.unvisited = self.all_task
-        self.done = False
+            self.distance_matrix = np.linalg.norm(self.locations[:, None, :] - self.locations[None, :, :], axis=-1)
+            self.time = 0.0
+            self.agent_speed = 0.01
+            self.agents_next_decision_time = np.zeros((self.n_agents, 1))
+            self.agents_prev_decision_time = np.zeros((self.n_agents, 1))
+            self.agents_destination_coordinates = np.ones((self.n_agents, 1)) * self.depot
+            self.total_reward = 0.0
+            self.total_length = 0
+            # self.first_dec = True
+            self.agents_current_range = torch.ones((1, self.n_agents), dtype=torch.float32) * self.max_range
+            self.agents_current_payload = torch.ones((1, self.n_agents), dtype=torch.float32) * self.max_capacity
+            self.time_deadlines = (torch.tensor(np.random.random((1, self.n_locations))) * .3 + .7) * 200
+            self.time_deadlines[0, 0] = 1000000 # large number for depot,
+            self.location_demand = torch.ones((1, self.n_locations), dtype=torch.float32)
+            self.task_done = torch.zeros((1, self.n_locations), dtype=torch.float32)
+            self.deadline_passed = torch.zeros((1, self.n_locations), dtype=torch.float32)
+            self.active_tasks = ((self.nodes_visited == 0).nonzero())[0]
+            # Reset the number of not-done tasks
+            # self.unvisited = self.all_task
+            self.done = False
 
-        if not self.enable_dynamic_tasks: # this conditional moight be unnecessary
-            n_initial_tasks = self.n_locations
-        else:
-            n_initial_tasks = self.n_initial_tasks
-        self.n_initial_tasks = n_initial_tasks
-        self.available_tasks[0: n_initial_tasks, 0] = 1 # set the initial tasks available
-        self.time_start = self.time_deadlines*(torch.rand((self.n_locations,1))*.5).T
-        self.time_start[0,0:self.n_initial_tasks] = 0
+            if not self.enable_dynamic_tasks: # this conditional moight be unnecessary
+                n_initial_tasks = self.n_locations
+            else:
+                n_initial_tasks = self.n_initial_tasks
+            self.n_initial_tasks = n_initial_tasks
+            self.available_tasks[0: n_initial_tasks, 0] = 1 # set the initial tasks available
+            self.time_start = self.time_deadlines*(torch.rand((self.n_locations,1))*.5).T
+            self.time_start[0,0:self.n_initial_tasks] = 0
         state = self.get_encoded_state()
         if self.enable_topological_features:
             self.topo_laplacian = None
