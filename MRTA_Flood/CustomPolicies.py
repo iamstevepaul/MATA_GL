@@ -29,7 +29,7 @@ from stable_baselines_al.common.distributions import (
     make_proba_distribution,
 )
 from stable_baselines_al.common.utils import get_device, is_vectorized_observation, obs_as_tensor
-from Feature_Extractors import GCAPCNFeatureExtractor, CAPAM, MLP
+from Feature_Extractors import GCAPCNFeatureExtractor, CAPAM, MLP, GraphAttentionEncoder
 
 #   TODO:
 #   Make the policy network task independent
@@ -123,7 +123,12 @@ class ActorCriticGCAPSPolicy(BasePolicy):
                 inter_dim=inter_dim
             )
         elif features_extractor_kwargs['feature_extractor'] == "AM":
-            pass  # need to add AM here
+            self.features_extractor = GraphAttentionEncoder(
+                node_dim=node_dim,
+                n_heads=features_extractor_kwargs['n_heads'],
+                embed_dim=features_dim,
+                n_layers=features_extractor_kwargs['Le']
+            )
         self.agent_decision_context = th.nn.Linear(agent_node_dim, features_dim)
         self.agent_context = th.nn.Linear(agent_node_dim, features_dim)
         self.full_context_nn = th.nn.Linear(2 * features_dim, features_dim)

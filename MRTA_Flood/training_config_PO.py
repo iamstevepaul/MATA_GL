@@ -7,14 +7,16 @@ import argparse
 def get_config(args=None):
 
     parser = argparse.ArgumentParser(
-        description="Graph Neural Network based reinforcement learning solution for MRTA-TAPTC")
+        description="Graph Neural Network based reinforcement learning solution for MRTA-Flood-PO")
+
+    # Environment related
     parser.add_argument('--problem', type=str, default='MRTA_Flood_PO', help='Name of the problem')
-    parser.add_argument('--n_locations', type=int, default=40, help="Number of locations (including the depot if any).")
-    parser.add_argument('--n_initial_tasks', type=int, default=30,
+    parser.add_argument('--n_locations', type=int, default=101, help="Number of locations (including the depot if any).")
+    parser.add_argument('--n_initial_tasks', type=int, default=71,
                         help="Number of initial tasks available. Used for problem with dynamic tasks.")
-    parser.add_argument('--n_robots', type=int, default=6, help="Number of robots")
-    parser.add_argument('--max_range', type=float, default=4, help='Maximum range for the robots')
-    parser.add_argument('--max_capacity', type=int, default=6, help='Maximum capacity for the robots')
+    parser.add_argument('--n_robots', type=int, default=10, help="Number of robots")
+    parser.add_argument('--max_range', type=float, default=1.4, help='Maximum range for the robots')
+    parser.add_argument('--max_capacity', type=int, default=5, help='Maximum capacity for the robots')
     parser.add_argument('--enable_dynamic_tasks', type=bool, default=False,
                         help="Boolean to enable dynamic tasks. The environment starts with n_initial_tasks, and"
                              "new tasks are introduced based on its start time")
@@ -45,7 +47,7 @@ def get_config(args=None):
     parser.add_argument('--gamma', type=float, default=1.00, help='Discount factor')
     parser.add_argument('--n_epochs', type=int, default=100, help='Number of epochs per rollout')
 
-    parser.add_argument('--logger', type=str, default='tensorboard_logger/', help='Directory for tensorboard logger')
+    parser.add_argument('--logger', type=str, default='Tensorboard_logger/', help='Directory for tensorboard logger')
     parser.add_argument('--model_save', type=str, default='Trained_Models/',
                         help='Directory for saving the trained models')
 

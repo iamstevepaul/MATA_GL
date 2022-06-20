@@ -23,8 +23,6 @@ class MRTA_Flood_Env(Env):
                  n_locations=100,
                  visited=[],
                  n_agents=2,
-                 agents=[],
-                 agents_location=[],
                  total_distance_travelled=0.0,
                  max_capacity=6,
                  max_range=4,
@@ -43,8 +41,6 @@ class MRTA_Flood_Env(Env):
         self.depot = self.locations[0, :]
         self.visited = visited
         self.n_agents = n_agents
-        self.agents = agents
-        self.agents_location = agents_location
         self.agents_prev_location = np.zeros((n_agents, 1), dtype=int)
         self.agents_next_location = np.zeros((n_agents, 1), dtype=int)
         self.agents_distance_travelled = np.zeros((n_agents, 1))
@@ -59,20 +55,19 @@ class MRTA_Flood_Env(Env):
 
         self.distance_matrix = np.linalg.norm(self.locations[:, None, :] - self.locations[None, :, :], axis=-1)
         self.time = 0.0
-        self.agent_speed = 0.01 # this param should be handles=d carefully. Makesure this is the same for the baselines
+        self.agent_speed = 0.4  # this param should be handles=d carefully. Makesure this is the same for the baselines
         self.agents_next_decision_time = np.zeros((n_agents, 1))
         self.agents_prev_decision_time = np.zeros((n_agents, 1))
         self.agents_destination_coordinates = np.ones((n_agents, 1)) * self.depot
 
         self.total_reward = 0.0
         self.total_length = 0
-        # self.first_dec = True
 
         self.max_capacity = max_capacity
         self.max_range = max_range
         self.agents_current_range = torch.ones((1,n_agents), dtype=torch.float32)*max_range
         self.agents_current_payload = torch.ones((1,n_agents), dtype=torch.float32)*max_capacity
-        self.time_deadlines = (torch.tensor(np.random.random((1, n_locations)))*.3 + .7)*200
+        self.time_deadlines = (torch.tensor(np.random.random((1, n_locations)))*.3 + .7)*300
         self.time_deadlines[0, 0] = 1000000
         self.location_demand = torch.ones((1, n_locations), dtype=torch.float32)
         self.task_done = torch.zeros((1, n_locations), dtype=torch.float32)
@@ -97,22 +92,12 @@ class MRTA_Flood_Env(Env):
         if self.enable_topological_features:
             self.observation_space = Dict(
                 dict(
-                    # location=Box(low=0, high=1, shape=self.locations.shape),
                     depot=Box(low=0, high=1, shape=(1, 2)),
                     mask=Box(low=0, high=1, shape=self.nodes_visited.shape),
-                    # agents_destination_coordinates=Box(low=0, high=1, shape=self.agents_destination_coordinates.shape),
-                    # agent_taking_decision_coordinates=Box(low=0, high=1, shape=self.agents_destination_coordinates[
-                    #                                                            self.agent_taking_decision, :].reshape(1,
-                    #                                                                                                   2).shape),
                     topo_laplacian=Box(low=0, high=1, shape=(n_locations-1,n_locations-1)),
                     task_graph_nodes=Box(low=0, high=1, shape=(n_locations - 1, 5)),
-                    # task_graph_adjacency=Box(low=0, high=1, shape=(n_locations - 1, n_locations - 1)),
                     agents_graph_nodes=Box(low=0, high=1, shape=(n_agents, 5)),
-                    # agents_graph_adjacency=Box(low=0, high=1, shape=(n_agents, n_agents)),
-                    # nodes_visited=Box(low=0, high=1, shape=self.nodes_visited.shape),
                     agent_taking_decision=Box(low=0, high=n_agents, shape=(1,), dtype=int),
-                    # first_dec=MultiBinary(1),
-                    # available_tasks=Box(low=0, high=1, shape=self.available_tasks.shape)
                 ))
             self.topo_laplacian = None
             state = self.get_encoded_state()
@@ -123,29 +108,16 @@ class MRTA_Flood_Env(Env):
         else:
             self.observation_space = Dict(
                 dict(
-                    # location=Box(low=0, high=1, shape=self.locations.shape),
                     depot=Box(low=0, high=1, shape=(1, 2)),
                     mask=Box(low=0, high=1, shape=self.nodes_visited.shape),
-                    # agents_destination_coordinates=Box(low=0, high=1, shape=self.agents_destination_coordinates.shape),
-                    # agent_taking_decision_coordinates=Box(low=0, high=1, shape=self.agents_destination_coordinates[
-                    #                                                            self.agent_taking_decision, :].reshape(1,
-                    #                                                                                                   2).shape),
-                    # topo_laplacian=Box(low=0, high=100000, shape=(n_locations-1,n_locations-1)),
                     task_graph_nodes=Box(low=0, high=1, shape=(n_locations-1,5)),
                     task_graph_adjacency=Box(low=0, high=1, shape=(n_locations-1, n_locations-1)),
                     agents_graph_nodes=Box(low=0, high=1, shape=(n_agents, 5)),
-                    # agents_graph_adjacency=Box(low=0, high=1, shape=(n_agents, n_agents)),
-                    # nodes_visited=Box(low=0, high=1, shape=self.nodes_visited.shape),
                     agent_taking_decision=Box(low=0, high=n_agents, shape=(1,), dtype=int),
-                    # first_dec = MultiBinary(1),
-                    # available_tasks=Box(low=0, high=1, shape=self.available_tasks.shape)
                 ))
 
         self.training = training
         self.distance = 0.0
-
-
-
         self.done = False
 
     def get_state(self):
@@ -161,41 +133,21 @@ class MRTA_Flood_Env(Env):
         agents_graph_nodes, agents_graph_adjacency = self.generate_agents_graph()
         if self.enable_topological_features:
             state = {
-                # 'location': self.locations,
                 'depot': self.depot.reshape(1, 2),
                 'mask': mask,
-                # 'agents_destination_coordinates': self.agents_destination_coordinates,
-                # 'agent_taking_decision_coordinates': self.agents_destination_coordinates[
-                #                                      self.agent_taking_decision, :].reshape(1,
-                #                                                                             2),
                 'task_graph_nodes': task_graph_nodes,
-                # 'task_graph_adjacency':task_graph_adjacency,
                 'topo_laplacian': self.topo_laplacian,
-                'agents_graph_nodes':agents_graph_nodes,
-                # 'agents_graph_adjacency':agents_graph_adjacency,
-                # 'nodes_visited':self.nodes_visited,
-                # 'first_dec': self.first_dec,
+                'agents_graph_nodes': agents_graph_nodes,
                 'agent_taking_decision': self.agent_taking_decision,
-                # 'available_tasks':self.available_tasks
             }
-            # topo_laplacian = self.get_topo_laplacian(state)
         else:
             state = {
-                # 'location': self.locations,
                 'depot': self.depot.reshape(1, 2),
                 'mask': mask,
-                # 'agents_destination_coordinates': self.agents_destination_coordinates,
-                # 'agent_taking_decision_coordinates': self.agents_destination_coordinates[
-                #                                      self.agent_taking_decision, :].reshape(1,
-                #                                                                             2),
                 'task_graph_nodes': task_graph_nodes,
                 'task_graph_adjacency':task_graph_adjacency,
                 'agents_graph_nodes': agents_graph_nodes,
-                # 'agents_graph_adjacency': agents_graph_adjacency,
-                # 'nodes_visited': self.nodes_visited,
-                # 'first_dec': self.first_dec,
                 'agent_taking_decision': self.agent_taking_decision,
-                # 'available_tasks':self.available_tasks
             }
         return state
 
@@ -270,7 +222,6 @@ class MRTA_Flood_Env(Env):
         # print(self.agent_taking_decision, action)
         agent_taking_decision = self.agent_taking_decision  # id of the agent taking action
         current_location_id = self.current_location_id  # current location id of the robot taking decision
-
         self.total_length = self.total_length + 1
 
         reward = 0.0
@@ -296,15 +247,7 @@ class MRTA_Flood_Env(Env):
                 self.deadline_passed[0, action] = 1
             else:
                 self.task_done[0, action] = 1
-
-            # print(sum(self.nodes_visited))
-            # reward = -travel_distance
-            # reward = -travel_distance#1/(travel_distance*100 + 10e-5)
             self.total_reward += reward
-
-
-            # else:
-            # reward = 0.0
 
             # change destination of robot taking decision
         self.agents_next_location[agent_taking_decision] = action
@@ -314,12 +257,12 @@ class MRTA_Flood_Env(Env):
         self.agents_next_decision_time[agent_taking_decision] = self.time + travel_distance / self.agent_speed
         if self.display:
             self.render(action)
-        ## finding the agent which takes the next decision
+
+        # finding the agent which takes the next decision
         self.agent_taking_decision = np.argmin(self.agents_next_decision_time)
         self.current_location_id = self.agents_next_location[self.agent_taking_decision][0].copy()
         self.time = self.agents_next_decision_time[self.agent_taking_decision][0].copy()
         deadlines_passed_ids = (self.time_deadlines < torch.tensor(self.time)).nonzero()
-        # print("Deadline passed: ", deadlines_passed_ids[:,1].T)
         if deadlines_passed_ids.shape[0] != 0:
 
             self.deadline_passed[0, deadlines_passed_ids[:,1]] = 1
@@ -332,18 +275,13 @@ class MRTA_Flood_Env(Env):
         self.available_tasks = (self.time_start <= self.time).to(torch.float32).T # making new tasks available
 
         if sum(self.nodes_visited) == self.n_locations - 1:
-            # reward = 1/(self.total_distance_travelled + 10e-5) - (self.total_length - self.n_locations+1)/self.n_locations
-            # 1/(self.total_distance_travelled**2+ 10e-5)## change this with the distance travelled
-            # self.total_reward += reward
             final_distance_to_depot = torch.cdist(torch.tensor(self.agents_destination_coordinates), torch.tensor(self.depot[None,:])).sum().item()
             if self.task_done.sum() == self.n_locations - 1:
-                reward = -(self.total_distance_travelled +final_distance_to_depot)/ (1.41 * self.n_locations)
+                reward = -(self.total_distance_travelled + final_distance_to_depot) / (1.41 * self.n_locations)
             else:
-                reward = -((self.n_locations - 1) - self.task_done.sum())/((self.n_locations - 1))
+                reward = -((self.n_locations - 1) - self.task_done.sum())/(self.n_locations - 1)
             self.total_reward = reward
             self.done = True
-            # if self.total_length == self.n_locations-1:
-            #     reward = reward + 1
             info = {"is_success": self.done,
                     "episode": {
                         "r": self.total_reward,
@@ -351,18 +289,15 @@ class MRTA_Flood_Env(Env):
                     }
                     }
 
-
-        # else:
-        #     reward = 0  # -100
-        #     self.total_reward += reward
-
-            # Set placeholder for info
-
-        # Return step information
-
         return self.get_encoded_state(), reward, self.done, info
 
     def get_mask(self):
+        # masking:
+        #   nodes visited - done
+        #   capacity = 0 -> depot - done
+        #   Range not sufficient to reach depot -> depot
+        #   deadlines passed done
+        #    if current location is depot, then mask the depot - done
         agent_taking_decision = self.agent_taking_decision
         mask = self.nodes_visited.copy()
         current_location_id = self.current_location_id
@@ -379,26 +314,16 @@ class MRTA_Flood_Env(Env):
             if mask[1:,0].prod() == 1: # if no other feasible locations, then go to depot
                 mask[0,0] = 0
 
-
-
         if mask.prod() != 0.0:
             mask[0,0] = 0
         mask = mask*(self.available_tasks).numpy() # making unavailable tasks
         return mask
-        # masking:
-        #   nodes visited - done
-        #   capacity = 0 -> depot - done
-        #   Range not sufficient to reach depot -> depot
-        #   deadlines passed done
-        #    if current location is depot, then mask the depot - done
 
     def generate_task_graph(self):
 
-        # if self.active_tasks.shape == 0:
-        #     print("Error....")
         locations = torch.tensor(self.locations)
-        time_deadlines = (self.time_deadlines.T)
-        location_demand = (self.location_demand.T)
+        time_deadlines = self.time_deadlines.T
+        location_demand = self.location_demand.T
         deadlines_passed = self.deadline_passed.T
         node_properties = torch.cat((locations, time_deadlines, location_demand, deadlines_passed), dim=1)
         node_properties = node_properties[1:, :] # excluding the depot
@@ -417,11 +342,6 @@ class MRTA_Flood_Env(Env):
         adjacency_matrix = 1 / (1 + torch.cdist(node_properties, node_properties))
         adjacency_matrix = adjacency_matrix * (distance_matrix > 0).to(torch.float32) # setting diagonal elements as 0
         return node_properties, adjacency_matrix
-
-    # def generate_feasible_task_graph(self, current_node_properties, current_ids):
-    #     pass
-
-
 
     def render(self, action):
 
@@ -485,17 +405,13 @@ class MRTA_Flood_Env(Env):
         # Show movement inbetween decision-making
 
 
-
-
     def reset(self):
         if self.training:
             self.action_space = Discrete(1)
             self.locations = np.random.random((self.n_locations, 2))
             self.depot = self.locations[0, :]
             self.visited = []
-            self.agents = []
             self.agent_taking_decision = 1
-            self.agents_location = []
             self.agents_prev_location = np.zeros((self.n_agents, 1), dtype=int)
             self.agents_next_location = np.zeros((self.n_agents, 1), dtype=int)
             self.agents_distance_travelled = np.zeros((self.n_agents, 1))
@@ -514,17 +430,15 @@ class MRTA_Flood_Env(Env):
             self.agents_destination_coordinates = np.ones((self.n_agents, 1)) * self.depot
             self.total_reward = 0.0
             self.total_length = 0
-            # self.first_dec = True
             self.agents_current_range = torch.ones((1, self.n_agents), dtype=torch.float32) * self.max_range
             self.agents_current_payload = torch.ones((1, self.n_agents), dtype=torch.float32) * self.max_capacity
-            self.time_deadlines = (torch.tensor(np.random.random((1, self.n_locations))) * .3 + .7) * 200
+            self.time_deadlines = (torch.tensor(np.random.random((1, self.n_locations))) * .3 + .7) * 300
             self.time_deadlines[0, 0] = 1000000 # large number for depot,
             self.location_demand = torch.ones((1, self.n_locations), dtype=torch.float32)
             self.task_done = torch.zeros((1, self.n_locations), dtype=torch.float32)
             self.deadline_passed = torch.zeros((1, self.n_locations), dtype=torch.float32)
             self.active_tasks = ((self.nodes_visited == 0).nonzero())[0]
             # Reset the number of not-done tasks
-            # self.unvisited = self.all_task
             self.done = False
 
             if not self.enable_dynamic_tasks: # this conditional moight be unnecessary
@@ -543,5 +457,4 @@ class MRTA_Flood_Env(Env):
             state["topo_laplacian"] = topo_laplacian
             self.topo_laplacian = topo_laplacian
         return state
-        # Reset to depot location
 

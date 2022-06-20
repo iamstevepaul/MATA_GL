@@ -1,11 +1,13 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
+.DS_Store
 *.py[cod]
 *$py.class
 Trained_models/
 tensorboard_logger
 MRTA_Flood/Test_data/
 MRTA_Flood/Trained_Models/
+MRTA_Flood/Results/
 # C extensions
 *.so
 .idea/

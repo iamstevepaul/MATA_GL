@@ -8,6 +8,7 @@ def get_config(args=None):
 
     parser = argparse.ArgumentParser(
         description="Graph Neural Network based reinforcement learning solution for MRTA-TAPTC")
+    # Environment related
     parser.add_argument('--problem', type=str, default='MRTA_TAPTC_PO', help='Name of the problem')
     parser.add_argument('--n_locations', type=int, default=40, help="Number of locations (including the depot if any).")
     parser.add_argument('--n_initial_tasks', type=int, default=30,
@@ -41,7 +42,7 @@ def get_config(args=None):
     parser.add_argument('--gamma', type=float, default=1.00, help='Discount factor')
     parser.add_argument('--n_epochs', type=int, default=100, help='Number of epochs per rollout')
 
-    parser.add_argument('--logger', type=str, default='tensorboard_logger/', help='Directory for tensorboard logger')
+    parser.add_argument('--logger', type=str, default='Tensorboard_logger/', help='Directory for tensorboard logger')
     parser.add_argument('--model_save', type=str, default='Trained_Models/',
                         help='Directory for saving the trained models')
 

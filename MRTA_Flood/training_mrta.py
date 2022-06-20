@@ -3,62 +3,18 @@ Author: Steve Paul
 Date: 4/15/22 """
 ""
 from torch import nn
-from collections import defaultdict
 import warnings
-import math
-import numpy as np
-import gym
-from stable_baselines_al import PPO, A2C
-# from stable_baselines.common import make_vec_env
+from stable_baselines_al import PPO
 from MRTA_Flood_Env import MRTA_Flood_Env
-import json
-import datetime as dt
 import torch
-from utils import *
 from topology import *
-import scipy.sparse as sp
-from persim import wasserstein, bottleneck
-import ot
 import pickle
+import os
 from CustomPolicies import ActorCriticGCAPSPolicy
-# from CustomPolicies import ActorCriticGCAPSPolicy
-from stable_baselines_al.common.utils import set_random_seed
 from training_config import get_config
-
 from stable_baselines_al.common.vec_env import DummyVecEnv, SubprocVecEnv
 
 warnings.filterwarnings('ignore')
-
-class Normalization(nn.Module):
-
-    def __init__(self, embed_dim, normalization='batch'):
-        super(Normalization, self).__init__()
-
-        normalizer_class = {
-            'batch': nn.BatchNorm1d,
-            'instance': nn.InstanceNorm1d
-        }.get(normalization, None)
-
-        self.normalizer = normalizer_class(embed_dim, affine=True)
-
-        # Normalization by default initializes affine parameters with bias 0 and weight unif(0,1) which is too large!
-        # self.init_parameters()
-
-    def init_parameters(self):
-
-        for name, param in self.named_parameters():
-            stdv = 1. / math.sqrt(param.size(-1))
-            param.data.uniform_(-stdv, stdv)
-
-    def forward(self, input):
-
-        if isinstance(self.normalizer, nn.BatchNorm1d):
-            return self.normalizer(input.view(-1, input.size(-1))).view(*input.size())
-        elif isinstance(self.normalizer, nn.InstanceNorm1d):
-            return self.normalizer(input.permute(0, 2, 1)).permute(0, 2, 1)
-        else:
-            assert self.normalizer is None, "Unknown normalizer type"
-            return input
 
 def as_tensor(observation):
     for key, obs in observation.items():
@@ -98,6 +54,7 @@ if config.enable_dynamic_tasks:
 else:
     task_type = "ND"
 
+
 if config.node_encoder == "CAPAM" or config.node_encoder == "MLP":
     tb_logger_location = config.logger+config.problem\
                      + "/" + config.node_encoder + "/" \
@@ -117,6 +74,25 @@ if config.node_encoder == "CAPAM" or config.node_encoder == "MLP":
                          + "_K_" + str(config.K) \
                          + "_P_" + str(config.P) + "_Le_" + str(config.Le) \
                          + "_h_" + str(config.features_dim)
+elif config.node_encoder == "AM":
+    tb_logger_location = config.logger + config.problem \
+                         + "/" + config.node_encoder + "/" \
+                         + config.problem \
+                         + "_nloc_" + str(config.n_locations) \
+                         + "_nrob_" + str(config.n_robots) + "_" + task_type + "_" \
+                         + config.node_encoder \
+                         + "_n_heads_" + str(config.n_heads) \
+                         + "_Le_" + str(config.Le) \
+                         + "_h_" + str(config.features_dim)
+    save_model_loc = config.model_save + config.problem \
+                     + "/" + config.node_encoder + "/" \
+                     + config.problem \
+                     + "_nloc_" + str(config.n_locations) \
+                     + "_nrob_" + str(config.n_robots) + "_" + task_type + "_" \
+                     + config.node_encoder \
+                     + "_n_heads_" + str(config.n_heads) \
+                     + "_Le_" + str(config.Le) \
+                     + "_h_" + str(config.features_dim)
 
 model = PPO(
     ActorCriticGCAPSPolicy,
@@ -139,59 +115,83 @@ obs = env.reset()
 model.save(save_model_loc)
 
 model = PPO.load(save_model_loc, env=env)
-env = DummyVecEnv([lambda: MRTA_Flood_Env(
-        n_locations = config.n_locations,
-        n_agents = config.n_robots,
-        max_capacity = config.max_capacity,
-        max_range = config.max_range,
-        enable_dynamic_tasks=config.enable_dynamic_tasks,
-        display = False,
-        enable_topological_features = config.enable_topological_features
-)])
 
+trained_model_n_loc = config.n_locations
+trained_model_n_robots = config.n_robots
+loc_test_multipliers = [0.5,1,2,5,10]
+robot_test_multipliers = [0.5,1,2]
 path =  "Test_data/" + config.problem + "/"
+for loc_mult in loc_test_multipliers:
+    for rob_mult in robot_test_multipliers:
+        n_robots_test = int(rob_mult*loc_mult*trained_model_n_robots)
+        n_loc_test = int(trained_model_n_loc*loc_mult)
 
-file_name = path + config.problem\
-                        + "_nloc_" + str(config.n_locations)\
-                         + "_nrob_" + str(config.n_robots) + "_" + task_type + ".pkl"
-with open(file_name, 'rb') as fl:
-    test_envs = pickle.load(fl)
-total_rewards_list = []
-distance_list = []
-total_tasks_done_list = []
-for env in test_envs:
-    env.envs[0].training = False
-    model.env = env
-    obs = env.reset()
-    obs = as_tensor(obs)
-    for i in range(1000000):
-            model.policy.set_training_mode(False)
-            action = model.policy._predict(obs)
-            obs, reward, done, _ = env.step(action)
+        env = DummyVecEnv([lambda: MRTA_Flood_Env(
+                n_locations = n_loc_test,
+                n_agents = n_robots_test,
+                max_capacity = config.max_capacity,
+                max_range = config.max_range,
+                enable_dynamic_tasks=config.enable_dynamic_tasks,
+                display = False,
+                enable_topological_features = config.enable_topological_features
+        )])
+
+        file_name = path + config.problem\
+                                + "_nloc_" + str(n_loc_test)\
+                                 + "_nrob_" + str(n_robots_test) + "_" + task_type + ".pkl"
+        with open(file_name, 'rb') as fl:
+            test_envs = pickle.load(fl)
+        fl.close()
+        total_rewards_list = []
+        distance_list = []
+        total_tasks_done_list = []
+        for env in test_envs:
+            env.envs[0].training = False
+            model.env = env
+            obs = env.reset()
             obs = as_tensor(obs)
-            if done:
-                    total_rewards_list.append(reward)
-                    distance_list.append(env.envs[0].total_distance_travelled)
-                    total_tasks_done_list.append(env.envs[0].task_done.sum())
-                    break
+            for i in range(1000000):
+                    model.policy.set_training_mode(False)
+                    action = model.policy._predict(obs)
+                    obs, reward, done, _ = env.step(action)
+                    obs = as_tensor(obs)
+                    if done:
+                            total_rewards_list.append(reward)
+                            distance_list.append(env.envs[0].total_distance_travelled)
+                            total_tasks_done_list.append(env.envs[0].task_done.sum())
+                            break
 
+        total_rewards_array = np.array(total_rewards_list)
+        distance_list_array = np.array(distance_list)
+        total_tasks_done_array = np.array(total_tasks_done_list)
+        if config.node_encoder == "CAPAM" or config.node_encoder == "MLP":
+            encoder = config.node_encoder\
+                                     + "_K_" + str(config.K) \
+                                     + "_P_" + str(config.P) + "_Le_" + str(config.Le) \
+                                     + "_h_" + str(config.features_dim)
+        else:
+            encoder = config.node_encoder \
+                     + "_n_heads_" + str(config.n_heads) \
+                     + "_Le_" + str(config.Le) \
+                     + "_h_" + str(config.features_dim)
+        data = {
+            "problem": config.problem,
+            "n_locations": n_loc_test,
+            "n_robots": n_robots_test,
+            "dynamic_task": config.enable_dynamic_tasks,
+            "policy":encoder,
+            "total_tasks_done": total_tasks_done_array,
+            "total_rewards": total_rewards_array,
+            "distance": distance_list_array
+        }
 
+        result_path = "Results/" + config.problem + "/"
 
-total_rewards_array = np.array(total_rewards_list)
-distance_list_array = np.array(distance_list)
-total_tasks_done_array = np.array(total_tasks_done_list)
-encoder = config.node_encoder\
-                         + "_K_" + str(config.K) \
-                         + "_P_" + str(config.P) + "_Le_" + str(config.Le) \
-                         + "_h_" + str(config.features_dim)
-data = {
-    "problem": config.problem,
-    "n_locations": config.n_locations, # will change
-    "dynamic_task": config.enable_dynamic_tasks,
-    "policy":encoder,
-    "total_tasks_done": total_tasks_done_array,
-    "total_rewards": total_rewards_array,
-    "distance": distance_list_array
-}
-
-## open file and save
+        result_file = result_path + config.problem + "_nloc_" + str(n_loc_test) \
+                      + "_nrob_" + str(n_robots_test) + "_" + task_type + "_" + encoder
+        mode = 0o755
+        if not os.path.exists(result_path):
+            os.makedirs(result_path, mode)
+        with open(result_file, 'wb') as fl:
+            pickle.dump(data, fl)
+        fl.close()
