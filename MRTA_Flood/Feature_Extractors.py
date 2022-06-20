@@ -164,8 +164,8 @@ class GraphCapsule(nn.Module):
         self.activ = nn.Tanh()
 
     def forward(self, data):
-        L = data['L']
         X = data["embeddings"]
+        L = data['L'].to(device=X.device)
         return {"L": L,
                 "embeddings":
                     self.activ(self.W_F(torch.cat([self.conv[p-1]({"embeddings": X**p, "L": L}) for p in range(1, self.P+1)],
@@ -186,8 +186,8 @@ class Conv(nn.Module):
         self.activ = nn.Tanh()
 
     def forward(self, data):
-        L = data["L"]
         X = data["embeddings"]
+        L = data["L"].to(device=X.device)
         return self.activ(self.W_L_1_G1(torch.cat([torch.matmul(L**i, X) for i in range(self.K+1)], dim=-1)))
 
 
