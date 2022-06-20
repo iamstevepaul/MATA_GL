@@ -168,14 +168,10 @@ class ActorCriticGCAPSPolicy(BasePolicy):
         # values = self.value_net(latent_vf)
 
         distribution, values = self.get_distribution(obs)
-        if random.random() > 0.05:
-            deterministic = True
-        else:
-            deterministic = True
+
+        deterministic = True
         actions = distribution.get_actions(deterministic=deterministic)
-        # actions = distribution.distribution.logits[0][0].argmax()
-        # a2 = distribution.distribution.sample()
-        # actions = a2[0,0]
+
         log_prob = distribution.log_prob(actions)
         return actions, values, log_prob
 
