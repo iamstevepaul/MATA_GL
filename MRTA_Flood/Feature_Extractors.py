@@ -95,7 +95,7 @@ class CAPAM(nn.Module):
                                           ),
                                          -1))
 
-        g_L1_1 = self.W_L_1_G1(torch.cat([torch.matmul(L**i, F0)[:, :, :] for i in range(self.K+1)], dim=-1))
+        # g_L1_1 = self.W_L_1_G1(torch.cat([torch.matmul(L**i, F0)[:, :, :] for i in range(self.K+1)], dim=-1))
 
         # F1 = self.normalization_1(F1)
         F1 = g_L1_1#torch.cat((g_L1_1), -1)

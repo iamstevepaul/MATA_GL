@@ -2,6 +2,7 @@
 Author: Steve Paul 
 Date: 6/17/22 """
 import argparse
+import torch
 
 # Configuration file for the MRTA_Flood_PO problem. (This configuration can only be used for the MRTA_Flood_PO)
 def get_config(args=None):
@@ -52,5 +53,6 @@ def get_config(args=None):
                         help='Directory for saving the trained models')
 
     config = parser.parse_args(args)
+    config.use_cuda = torch.cuda.is_available() and not config.no_cuda
 
     return config

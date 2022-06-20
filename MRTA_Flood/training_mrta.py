@@ -24,7 +24,7 @@ def as_tensor(observation):
 config = get_config()
 test = True  # if this is set as true, then make sure the test data is generated.
 # Otherwise, run the test_env_generator script
-
+config.device = torch.device("cuda:0" if config.use_cuda else "cpu")
 env = DummyVecEnv([lambda: MRTA_Flood_Env(
         n_locations = config.n_locations,
         n_agents = config.n_robots,
@@ -109,7 +109,8 @@ model = PPO(
     learning_rate=config.learning_rate,
     policy_kwargs = policy_kwargs,
     ent_coef=config.ent_coef,
-    vf_coef=config.val_coef
+    vf_coef=config.val_coef,
+    device=config.device
 )
 model.learn(total_timesteps=config.total_steps)
 
