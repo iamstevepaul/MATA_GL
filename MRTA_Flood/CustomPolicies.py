@@ -8,7 +8,7 @@ import torch as th
 import gym
 import math
 import random
-from stable_baselines_al.common.type_aliases import Schedule
+from stable_baselines3.common.type_aliases import Schedule
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union
 from stable_baselines3.common.torch_layers import (
     BaseFeaturesExtractor,
