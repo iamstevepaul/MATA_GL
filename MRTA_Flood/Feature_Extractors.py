@@ -6,7 +6,7 @@ from torch import nn
 import torch
 import math
 import numpy as np
-
+from typing import Union
 
 class MLP(nn.Module):
 
@@ -119,7 +119,8 @@ class CAPAM_P(nn.Module):
                  features_dim=128,
                  P=1,
                  node_dim=2,
-                 K=1
+                 K=1,
+                 device: Union[torch.device, str] = "auto"
                  ):
         super(CAPAM_P, self).__init__()
         self.Le = Le
@@ -127,11 +128,13 @@ class CAPAM_P(nn.Module):
         self.P = P
         self.K = K
         self.node_dim = node_dim
-        self.init_embed = nn.Linear(node_dim, features_dim)
-        self.init_embed_depot = nn.Linear(2, features_dim)
-        graph_capsule_layers = [GraphCapsule(P=P, K=K, features_dim=features_dim) for le in range(Le)]
-        self.graph_capsule_layers = nn.Sequential(*graph_capsule_layers)
+        self.init_embed = nn.Linear(node_dim, features_dim).to(device=device)
+        self.init_embed_depot = nn.Linear(2, features_dim).to(device=device)
+        self.device = device
+        graph_capsule_layers = [GraphCapsule(P=P, K=K, features_dim=features_dim, device=device) for le in range(Le)]
+        self.graph_capsule_layers = nn.Sequential(*graph_capsule_layers).to(device=device)
         self.activ = nn.Tanh()
+
 
     def forward(self, data):
         X = data['task_graph_nodes']
@@ -154,13 +157,14 @@ class GraphCapsule(nn.Module):
     def __init__(self,
                  features_dim=128,
                  P=1,
-                 K=1
+                 K=1,
+                 device: Union[torch.device, str] = "auto"
                  ):
         super(GraphCapsule, self).__init__()
         self.features_dim = features_dim
         self.P = P
-        self.conv = [Conv(P=P, K=K, features_dim=features_dim) for p in range(P)]
-        self.W_F = nn.Linear(features_dim * P, features_dim)
+        self.conv = [Conv(P=P, K=K, features_dim=features_dim, device=device) for p in range(P)]
+        self.W_F = nn.Linear(features_dim * P, features_dim).to(device=device)
         self.activ = nn.Tanh()
 
     def forward(self, data):
@@ -177,12 +181,13 @@ class Conv(nn.Module):
     def __init__(self,
                  P=1,
                  features_dim=128,
-                 K=1
+                 K=1,
+                 device: Union[torch.device, str] = "auto"
                  ):
         super(Conv, self).__init__()
         self.features_dim = features_dim
         self.K = K
-        self.W_L_1_G1 = nn.Linear(features_dim * (K + 1), features_dim)
+        self.W_L_1_G1 = nn.Linear(features_dim * (K + 1), features_dim).to(device=device)
         self.activ = nn.Tanh()
 
     def forward(self, data):

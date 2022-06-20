@@ -90,6 +90,7 @@ class ActorCriticGCAPSPolicy(BasePolicy):
         features_extractor_kwargs: Optional[Dict[str, Any]] = None,
         optimizer_class: Type[th.optim.Optimizer] = th.optim.Adam,
         optimizer_kwargs: Optional[Dict[str, Any]] = None,
+        device: Union[th.device, str] = "auto"
                  ):
         super(ActorCriticGCAPSPolicy, self).__init__(observation_space,
             action_space,
@@ -105,7 +106,7 @@ class ActorCriticGCAPSPolicy(BasePolicy):
         self.node_dim=features_extractor_kwargs['node_dim']
 
         value_net_net = [th.nn.Linear(features_dim, features_dim, bias=False),th.nn.Linear(features_dim, 1, bias=False)]
-        self.value_net = th.nn.Sequential(*value_net_net)
+        self.value_net = th.nn.Sequential(*value_net_net).to(device=device)
         if features_extractor_kwargs['feature_extractor'] == "CAPAM":
             self.features_extractor = CAPAM(
                 node_dim=node_dim,
@@ -113,25 +114,25 @@ class ActorCriticGCAPSPolicy(BasePolicy):
                 K=features_extractor_kwargs['K'],
                 Le = features_extractor_kwargs['Le'],
                 P=features_extractor_kwargs['P']
-            )
+            ).to(device=device)
         elif features_extractor_kwargs['feature_extractor'] == "MLP":
             inter_dim = features_dim * (features_extractor_kwargs['K'] + 1) * features_extractor_kwargs['P']
             self.features_extractor = MLP(
                 node_dim=node_dim,
                 features_dim=features_dim,
                 inter_dim=inter_dim
-            )
+            ).to(device=device)
         elif features_extractor_kwargs['feature_extractor'] == "AM":
             pass # need to add AM here
-        self.agent_decision_context = th.nn.Linear(agent_node_dim,features_dim)
-        self.agent_context = th.nn.Linear(agent_node_dim,features_dim)
-        self.full_context_nn = th.nn.Linear(2*features_dim, features_dim)
+        self.agent_decision_context = th.nn.Linear(agent_node_dim,features_dim).to(device=device)
+        self.agent_context = th.nn.Linear(agent_node_dim,features_dim).to(device=device)
+        self.full_context_nn = th.nn.Linear(2*features_dim, features_dim).to(device=device)
         self.optimizer = self.optimizer_class(self.parameters(), lr=lr_schedule(1), **self.optimizer_kwargs)
         self.action_dist = make_proba_distribution(action_space, use_sde=use_sde)
 
-        self.project_fixed_context = th.nn.Linear(features_dim, features_dim, bias=False)
-        self.project_node_embeddings = th.nn.Linear(features_dim, 3 * features_dim, bias=False)
-        self.project_out = th.nn.Linear(features_dim, features_dim, bias=False)
+        self.project_fixed_context = th.nn.Linear(features_dim, features_dim, bias=False).to(device=device)
+        self.project_node_embeddings = th.nn.Linear(features_dim, 3 * features_dim, bias=False).to(device=device)
+        self.project_out = th.nn.Linear(features_dim, features_dim, bias=False).to(device=device)
         self.n_heads = features_extractor_kwargs['n_heads']
         self.tanh_clipping = features_extractor_kwargs['tanh_clipping']
         self.mask_logits = features_extractor_kwargs['mask_logits']

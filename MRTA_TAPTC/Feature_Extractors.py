@@ -4,6 +4,7 @@ Date: 1/18/22 """
 
 from torch import nn
 import torch
+from typing import Union
 
 class MLP(nn.Module):
 
@@ -44,7 +45,8 @@ class CAPAM(nn.Module):
                  features_dim=128,
                  P=1,
                  node_dim=2,
-                 K=1
+                 K=1,
+                 device: Union[torch.device, str] = "auto"
                  ):
         super(CAPAM, self).__init__()
         self.Le = Le
@@ -52,12 +54,12 @@ class CAPAM(nn.Module):
         self.P = P
         self.K = K
         self.node_dim = node_dim
-        self.init_embed = nn.Linear(node_dim, features_dim * P)
-        self.init_embed_depot = nn.Linear(2, features_dim)
+        self.init_embed = nn.Linear(node_dim, features_dim * P).to(device=device)
+        self.init_embed_depot = nn.Linear(2, features_dim).to(device=device)
 
-        self.W_L_1_G1 = nn.Linear(features_dim * (K + 1) * P, features_dim)
+        self.W_L_1_G1 = nn.Linear(features_dim * (K + 1) * P, features_dim).to(device=device)
 
-        self.W_F = nn.Linear(features_dim * P, features_dim)
+        self.W_F = nn.Linear(features_dim * P, features_dim).to(device=device)
 
         self.activ = nn.Tanh()
 
