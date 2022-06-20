@@ -2,7 +2,7 @@
 Author: Steve Paul 
 Date: 6/18/22 """
 import pickle
-from stable_baselines_al.common.vec_env import DummyVecEnv, SubprocVecEnv
+from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 from MRTA_Flood_Env import MRTA_Flood_Env
 from MRTA_Flood_PO_Env import MRTA_Flood_PO_Env
 import os

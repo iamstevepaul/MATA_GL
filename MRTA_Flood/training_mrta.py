@@ -3,7 +3,7 @@ Author: Steve Paul
 Date: 4/15/22 """
 ""
 import warnings
-from stable_baselines_al import PPO
+from stable_baselines3 import PPO
 from MRTA_Flood_Env import MRTA_Flood_Env
 import torch
 from topology import *
@@ -11,7 +11,7 @@ import pickle
 import os
 from CustomPolicies import ActorCriticGCAPSPolicy
 from training_config import get_config
-from stable_baselines_al.common.vec_env import DummyVecEnv, SubprocVecEnv
+from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 
 warnings.filterwarnings('ignore')
 

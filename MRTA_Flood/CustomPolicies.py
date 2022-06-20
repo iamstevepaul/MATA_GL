@@ -3,14 +3,14 @@ Author: Steve Paul
 Date: 1/18/22 """
 import torch
 
-from stable_baselines_al.common.policies import BasePolicy
+from stable_baselines3.common.policies import BasePolicy
 import torch as th
 import gym
 import math
 import random
 from stable_baselines_al.common.type_aliases import Schedule
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union
-from stable_baselines_al.common.torch_layers import (
+from stable_baselines3.common.torch_layers import (
     BaseFeaturesExtractor,
     CombinedExtractor,
     FlattenExtractor,
@@ -19,7 +19,7 @@ from stable_baselines_al.common.torch_layers import (
     create_mlp,
 )
 from typing import NamedTuple
-from stable_baselines_al.common.distributions import (
+from stable_baselines3.common.distributions import (
     BernoulliDistribution,
     CategoricalDistribution,
     DiagGaussianDistribution,
@@ -28,7 +28,7 @@ from stable_baselines_al.common.distributions import (
     StateDependentNoiseDistribution,
     make_proba_distribution,
 )
-from stable_baselines_al.common.utils import get_device, is_vectorized_observation, obs_as_tensor
+from stable_baselines3.common.utils import get_device, is_vectorized_observation, obs_as_tensor
 from Feature_Extractors import GCAPCNFeatureExtractor, CAPAM, MLP, GraphAttentionEncoder, CAPAM_P
 
 #   TODO:

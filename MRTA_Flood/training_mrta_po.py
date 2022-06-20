@@ -8,7 +8,7 @@ import warnings
 import math
 import numpy as np
 import gym
-from stable_baselines_al import PPO, A2C
+from stable_baselines3 import PPO, A2C
 # from stable_baselines.common import make_vec_env
 from MRTA_Flood_PO_Env import MRTA_Flood_PO_Env
 import json
@@ -26,7 +26,7 @@ from CustomPolicies import ActorCriticGCAPSPolicy
 from stable_baselines_al.common.utils import set_random_seed
 from training_config_PO import get_config
 
-from stable_baselines_al.common.vec_env import DummyVecEnv, SubprocVecEnv
+from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 
 warnings.filterwarnings('ignore')
 
