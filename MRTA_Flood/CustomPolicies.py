@@ -29,7 +29,7 @@ from stable_baselines_al.common.distributions import (
     make_proba_distribution,
 )
 from stable_baselines_al.common.utils import get_device, is_vectorized_observation, obs_as_tensor
-from Feature_Extractors import GCAPCNFeatureExtractor, CAPAM, MLP, GraphAttentionEncoder
+from Feature_Extractors import GCAPCNFeatureExtractor, CAPAM, MLP, GraphAttentionEncoder, CAPAM_P
 
 #   TODO:
 #   Make the policy network task independent
@@ -108,7 +108,7 @@ class ActorCriticGCAPSPolicy(BasePolicy):
                          th.nn.Linear(features_dim, 1, bias=False)]
         self.value_net = th.nn.Sequential(*value_net_net)
         if features_extractor_kwargs['feature_extractor'] == "CAPAM":
-            self.features_extractor = CAPAM(
+            self.features_extractor = CAPAM_P(
                 node_dim=node_dim,
                 features_dim=features_dim,
                 K=features_extractor_kwargs['K'],

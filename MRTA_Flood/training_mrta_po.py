@@ -191,7 +191,7 @@ if test:
             total_rewards_array = np.array(total_rewards_list)
             distance_list_array = np.array(distance_list)
             total_tasks_done_array = np.array(total_tasks_done_list)
-            conflicts__array = np.array(conflicts_list)
+            conflicts_array = np.array(conflicts_list)
             if config.node_encoder == "CAPAM" or config.node_encoder == "MLP":
                 encoder = config.node_encoder\
                                          + "_K_" + str(config.K) \
@@ -211,7 +211,7 @@ if test:
                 "total_tasks_done": total_tasks_done_array,
                 "total_rewards": total_rewards_array,
                 "distance": distance_list_array,
-                "conflicts": conflicts__array
+                "conflicts": conflicts_array
             }
 
             result_path = "Results/" + config.problem + "/"

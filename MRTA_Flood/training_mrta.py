@@ -2,7 +2,6 @@
 Author: Steve Paul 
 Date: 4/15/22 """
 ""
-from torch import nn
 import warnings
 from stable_baselines_al import PPO
 from MRTA_Flood_Env import MRTA_Flood_Env
@@ -15,6 +14,7 @@ from training_config import get_config
 from stable_baselines_al.common.vec_env import DummyVecEnv, SubprocVecEnv
 
 warnings.filterwarnings('ignore')
+
 
 def as_tensor(observation):
     for key, obs in observation.items():

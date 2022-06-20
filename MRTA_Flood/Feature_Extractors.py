@@ -80,9 +80,6 @@ class CAPAM(nn.Module):
         D = torch.mul(torch.eye(num_locations, device=X.device).expand((num_samples, num_locations, num_locations)),
                       (A.sum(-1) - 1)[:, None].expand((num_samples, num_locations, num_locations)))
 
-
-
-
         # Layer 1
 
         # p = 3
@@ -91,12 +88,14 @@ class CAPAM(nn.Module):
         # K = 3
         L = D - A
         # L_squared = torch.matmul(L, L)
-        # L_cube = torch.matmul(L, L_squared)
+        # L_cube = torch.matmul(L, L_squared)  torch.cat([torch.matmul(L**(i), F0)[:, :, :] for i in range(self.K+1)], dim=-1)
 
         g_L1_1 = self.W_L_1_G1(torch.cat((F0[:, :, :],
                                           torch.matmul(L, F0)[:, :, :],
                                           ),
                                          -1))
+
+        g_L1_1 = self.W_L_1_G1(torch.cat([torch.matmul(L**i, F0)[:, :, :] for i in range(self.K+1)], dim=-1))
 
         # F1 = self.normalization_1(F1)
         F1 = g_L1_1#torch.cat((g_L1_1), -1)
@@ -112,6 +111,84 @@ class CAPAM(nn.Module):
             h,  # (batch_size, graph_size, embed_dim)
             h.mean(dim=1),  # average to get embedding of graph, (batch_size, embed_dim)
         )
+
+
+class CAPAM_P(nn.Module):
+    def __init__(self,
+                 Le=2,
+                 features_dim=128,
+                 P=1,
+                 node_dim=2,
+                 K=1
+                 ):
+        super(CAPAM_P, self).__init__()
+        self.Le = Le
+        self.features_dim = features_dim
+        self.P = P
+        self.K = K
+        self.node_dim = node_dim
+        self.init_embed = nn.Linear(node_dim, features_dim)
+        self.init_embed_depot = nn.Linear(2, features_dim)
+        graph_capsule_layers = [GraphCapsule(P=P, K=K, features_dim=features_dim) for le in range(Le)]
+        self.graph_capsule_layers = nn.Sequential(*graph_capsule_layers)
+        self.activ = nn.Tanh()
+
+    def forward(self, data):
+        X = data['task_graph_nodes']
+        num_samples, num_locations, _ = X.size()
+        A = data['task_graph_adjacency']
+        D = torch.mul(torch.eye(num_locations, device=X.device).expand((num_samples, num_locations, num_locations)),
+                      (A.sum(-1) - 1)[:, None].expand((num_samples, num_locations, num_locations)))
+        F0 = self.init_embed(X)
+        L = D - A
+        init_depot_embed = self.init_embed_depot(data['depot'])
+        F = self.graph_capsule_layers({"embeddings": F0, "L": L})["embeddings"]
+        h = torch.cat((init_depot_embed, F), 1)
+        return (
+            h,  # (batch_size, graph_size, embed_dim)
+            h.mean(dim=1),  # average to get embedding of graph, (batch_size, embed_dim)
+        )
+
+
+class GraphCapsule(nn.Module):
+    def __init__(self,
+                 features_dim=128,
+                 P=1,
+                 K=1
+                 ):
+        super(GraphCapsule, self).__init__()
+        self.features_dim = features_dim
+        self.P = P
+        self.conv = [Conv(P=P, K=K, features_dim=features_dim) for p in range(P)]
+        self.W_F = nn.Linear(features_dim * P, features_dim)
+        self.activ = nn.Tanh()
+
+    def forward(self, data):
+        L = data['L']
+        X = data["embeddings"]
+        return {"L": L,
+                "embeddings":
+                    self.activ(self.W_F(torch.cat([self.conv[p-1]({"embeddings": X**p, "L": L}) for p in range(1, self.P+1)],
+                                       dim=-1)))
+                }
+
+
+class Conv(nn.Module):
+    def __init__(self,
+                 P=1,
+                 features_dim=128,
+                 K=1
+                 ):
+        super(Conv, self).__init__()
+        self.features_dim = features_dim
+        self.K = K
+        self.W_L_1_G1 = nn.Linear(features_dim * (K + 1), features_dim)
+        self.activ = nn.Tanh()
+
+    def forward(self, data):
+        L = data["L"]
+        X = data["embeddings"]
+        return self.activ(self.W_L_1_G1(torch.cat([torch.matmul(L**i, X) for i in range(self.K+1)], dim=-1)))
 
 
 class GCAPCNFeatureExtractor(nn.Module):
