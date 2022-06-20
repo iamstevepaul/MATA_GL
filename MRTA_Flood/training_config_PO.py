@@ -51,6 +51,7 @@ def get_config(args=None):
     parser.add_argument('--logger', type=str, default='Tensorboard_logger/', help='Directory for tensorboard logger')
     parser.add_argument('--model_save', type=str, default='Trained_Models/',
                         help='Directory for saving the trained models')
+    parser.add_argument('--no_cuda', action='store_true', help='Disable CUDA')
 
     config = parser.parse_args(args)
     config.use_cuda = torch.cuda.is_available() and not config.no_cuda
