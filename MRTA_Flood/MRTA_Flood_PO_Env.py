@@ -73,7 +73,7 @@ class MRTA_Flood_PO_Env(Env):
         self.max_range = max_range
         self.agents_current_range = torch.ones((1,n_agents), dtype=torch.float32)*max_range
         self.agents_current_payload = torch.ones((1,n_agents), dtype=torch.float32)*max_capacity
-        self.time_deadlines = (torch.tensor(np.random.random((1, n_locations)))*.7 + .3)*5
+        self.time_deadlines = (torch.tensor(np.random.random((1, n_locations)))*.3 + .7)*5
         self.time_deadlines[0, 0] = 1000000
         self.location_demand = torch.ones((1, n_locations), dtype=torch.float32)
         self.task_done = torch.zeros((1, n_locations), dtype=torch.float32)
@@ -634,7 +634,7 @@ class MRTA_Flood_PO_Env(Env):
             # self.first_dec = True
             self.agents_current_range = torch.ones((1, self.n_agents), dtype=torch.float32) * self.max_range
             self.agents_current_payload = torch.ones((1, self.n_agents), dtype=torch.float32) * self.max_capacity
-            self.time_deadlines = (torch.tensor(np.random.random((1, self.n_locations))) * .7 + .3) * 5
+            self.time_deadlines = (torch.tensor(np.random.random((1, self.n_locations))) * .3 + .7) * 5
             self.time_deadlines[0, 0] = 1000000 # large number for depot,
             self.location_demand = torch.ones((1, self.n_locations), dtype=torch.float32)
             self.task_done = torch.zeros((1, self.n_locations), dtype=torch.float32)
