@@ -3,19 +3,19 @@ Author: Steve Paul
 Date: 5/31/22 """
 
 
-import numpy as np
-import gym
+# import numpy as np
+# import gym
 import time
 from gym import Env
 from collections import defaultdict
-from gym.spaces import Discrete, MultiBinary, Box, Dict
-import random
+from gym.spaces import Discrete, Box, Dict
+# import random
 import matplotlib.pyplot as plt
 import torch
 from topology import *
 import scipy.sparse as sp
-from persim import wasserstein, bottleneck
-import ot
+from persim import wasserstein#, bottleneck
+# import ot
 
 class MRTA_Flood_PO_Env(Env):
 

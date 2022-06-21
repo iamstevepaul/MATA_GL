@@ -7,29 +7,21 @@ from stable_baselines3.common.policies import BasePolicy
 import torch as th
 import gym
 import math
-import random
 from stable_baselines3.common.type_aliases import Schedule
-from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union
+from typing import Any, Dict, List, Optional, Tuple, Type, Union
 from stable_baselines3.common.torch_layers import (
     BaseFeaturesExtractor,
-    CombinedExtractor,
-    FlattenExtractor,
-    MlpExtractor,
-    NatureCNN,
-    create_mlp,
+    FlattenExtractor
 )
 from typing import NamedTuple
 from stable_baselines3.common.distributions import (
     BernoulliDistribution,
     CategoricalDistribution,
     DiagGaussianDistribution,
-    Distribution,
     MultiCategoricalDistribution,
     StateDependentNoiseDistribution,
     make_proba_distribution,
 )
-from stable_baselines3.common.utils import get_device, is_vectorized_observation, obs_as_tensor
-from Feature_Extractors import GCAPCNFeatureExtractor, CAPAM, MLP, GraphAttentionEncoder, CAPAM_P
 
 #   TODO:
 #   Make the policy network task independent
@@ -109,6 +101,7 @@ class ActorCriticGCAPSPolicy(BasePolicy):
                          th.nn.Linear(features_dim, 1, bias=False)]
         self.value_net = th.nn.Sequential(*value_net_net).to(device=device)
         if features_extractor_kwargs['feature_extractor'] == "CAPAM":
+            from Feature_Extractors import CAPAM_P
             self.features_extractor = CAPAM_P(
                 node_dim=node_dim,
                 features_dim=features_dim,
@@ -118,6 +111,7 @@ class ActorCriticGCAPSPolicy(BasePolicy):
                 device=device
             ).to(device=device)
         elif features_extractor_kwargs['feature_extractor'] == "MLP":
+            from Feature_Extractors import MLP
             inter_dim = features_dim * (features_extractor_kwargs['K'] + 1) * features_extractor_kwargs['P']
             self.features_extractor = MLP(
                 node_dim=node_dim,
@@ -126,6 +120,7 @@ class ActorCriticGCAPSPolicy(BasePolicy):
                 device=device
             ).to(device=device)
         elif features_extractor_kwargs['feature_extractor'] == "AM":
+            from Feature_Extractors import GraphAttentionEncoder
             self.features_extractor = GraphAttentionEncoder(
                 node_dim=node_dim,
                 n_heads=features_extractor_kwargs['n_heads'],

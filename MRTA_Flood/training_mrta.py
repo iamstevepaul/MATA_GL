@@ -11,8 +11,9 @@ import pickle
 import os
 from CustomPolicies import ActorCriticGCAPSPolicy
 from training_config import get_config
-from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
-
+from stable_baselines3.common.vec_env import DummyVecEnv #, SubprocVecEnv
+import gc
+gc.collect()
 warnings.filterwarnings('ignore')
 torch.cuda.empty_cache()
 
