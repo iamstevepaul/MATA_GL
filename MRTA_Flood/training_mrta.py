@@ -49,7 +49,9 @@ policy_kwargs=dict(
         tanh_clipping=config.tanh_clipping,
         mask_logits=config.mask_logits,
         temp=config.temp
-))
+    ),
+    device=config.device
+)
 
 if config.enable_dynamic_tasks:
     task_type = "D"
