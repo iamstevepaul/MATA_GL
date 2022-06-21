@@ -114,21 +114,24 @@ class ActorCriticGCAPSPolicy(BasePolicy):
                 features_dim=features_dim,
                 K=features_extractor_kwargs['K'],
                 Le=features_extractor_kwargs['Le'],
-                P=features_extractor_kwargs['P']
+                P=features_extractor_kwargs['P'],
+                device=device
             ).to(device=device)
         elif features_extractor_kwargs['feature_extractor'] == "MLP":
             inter_dim = features_dim * (features_extractor_kwargs['K'] + 1) * features_extractor_kwargs['P']
             self.features_extractor = MLP(
                 node_dim=node_dim,
                 features_dim=features_dim,
-                inter_dim=inter_dim
+                inter_dim=inter_dim,
+                device=device
             ).to(device=device)
         elif features_extractor_kwargs['feature_extractor'] == "AM":
             self.features_extractor = GraphAttentionEncoder(
                 node_dim=node_dim,
                 n_heads=features_extractor_kwargs['n_heads'],
                 embed_dim=features_dim,
-                n_layers=features_extractor_kwargs['Le']
+                n_layers=features_extractor_kwargs['Le'],
+                device=device
             ).to(device=device)
         self.agent_decision_context = th.nn.Linear(agent_node_dim, features_dim).to(device=device)
         self.agent_context = th.nn.Linear(agent_node_dim, features_dim).to(device=device)

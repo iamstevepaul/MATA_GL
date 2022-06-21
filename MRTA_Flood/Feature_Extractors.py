@@ -14,7 +14,8 @@ class MLP(nn.Module):
                  n_layers=2,
                  features_dim=128,
                  node_dim=2,
-                 inter_dim=128
+                 inter_dim=128,
+                 device: Union[torch.device, str] = "auto"
                  ):
         super(MLP, self).__init__()
         self.n_layers = n_layers
@@ -279,7 +280,8 @@ class GraphAttentionEncoder(nn.Module):
             n_layers,
             node_dim=None,
             normalization='batch',
-            feed_forward_hidden=512
+            feed_forward_hidden=512,
+            device: Union[torch.device, str] = "auto"
     ):
         super(GraphAttentionEncoder, self).__init__()
 
