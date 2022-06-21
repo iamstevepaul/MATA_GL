@@ -12,7 +12,7 @@ from stable_baselines_al import PPO, A2C
 from MRTA_TAPTC_Env import MRTA_TAPTC_Env
 # import json
 # import datetime as dt
-# import torch
+import torch
 # from utils import *
 # from topology import *
 # import scipy.sparse as sp
@@ -25,7 +25,7 @@ from training_config import get_config
 from stable_baselines_al.common.vec_env import DummyVecEnv, SubprocVecEnv
 
 warnings.filterwarnings('ignore')
-
+torch.cuda.empty_cache()
 config = get_config()
 
 env = DummyVecEnv([lambda: MRTA_TAPTC_Env(

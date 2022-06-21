@@ -14,7 +14,7 @@ from training_config import get_config
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 
 warnings.filterwarnings('ignore')
-
+torch.cuda.empty_cache()
 
 def as_tensor(observation):
     for key, obs in observation.items():
