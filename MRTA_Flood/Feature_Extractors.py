@@ -188,13 +188,13 @@ class Conv(nn.Module):
         super(Conv, self).__init__()
         self.features_dim = features_dim
         self.K = K
-        self.W_L_1_G1 = nn.Linear(features_dim * (K + 1), features_dim).to(device=device)
+        self.W = nn.Linear(features_dim * (K + 1), features_dim).to(device=device)
         self.activ = nn.Tanh()
 
     def forward(self, data):
         X = data["embeddings"]
         L = data["L"].to(device=X.device)
-        return self.activ(self.W_L_1_G1(torch.cat([torch.matmul(L**i, X) for i in range(self.K+1)], dim=-1)))
+        return self.activ(self.W(torch.cat([torch.matmul(L**i, X) for i in range(self.K+1)], dim=-1)))
 
 
 class GCAPCNFeatureExtractor(nn.Module):

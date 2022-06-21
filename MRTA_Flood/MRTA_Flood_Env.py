@@ -243,11 +243,12 @@ class MRTA_Flood_Env(Env):
 
             # update the  status of the node_visited that was chosen
             self.nodes_visited[action] = 1
-            if self.time_deadlines[0, action] < torch.tensor(self.time):
+            if self.time_deadlines[0, action] < torch.tensor(self.time + (travel_distance / self.agent_speed)):
                 self.deadline_passed[0, action] = 1
             else:
                 self.task_done[0, action] = 1
-            self.total_reward += reward
+                reward = 1/(self.n_locations-1)
+        self.total_reward += reward
 
             # change destination of robot taking decision
         self.agents_next_location[agent_taking_decision] = action
@@ -275,12 +276,12 @@ class MRTA_Flood_Env(Env):
         self.available_tasks = (self.time_start <= self.time).to(torch.float32).T # making new tasks available
 
         if sum(self.nodes_visited) == self.n_locations - 1:
-            final_distance_to_depot = torch.cdist(torch.tensor(self.agents_destination_coordinates), torch.tensor(self.depot[None,:])).sum().item()
-            if self.task_done.sum() == self.n_locations - 1:
-                reward = -(self.total_distance_travelled + final_distance_to_depot) / (1.41 * self.n_locations)
-            else:
-                reward = -((self.n_locations - 1) - self.task_done.sum())/(self.n_locations - 1)
-            self.total_reward = reward
+            # final_distance_to_depot = torch.cdist(torch.tensor(self.agents_destination_coordinates), torch.tensor(self.depot[None,:])).sum().item()
+            # if self.task_done.sum() == self.n_locations - 1:
+            #     reward = -(self.total_distance_travelled + final_distance_to_depot) / (1.41 * self.n_locations)
+            # else:
+            #     reward = -((self.n_locations - 1) - self.task_done.sum())/(self.n_locations - 1)
+            # self.total_reward = reward
             self.done = True
             info = {"is_success": self.done,
                     "episode": {
