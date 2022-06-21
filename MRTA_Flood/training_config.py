@@ -24,7 +24,7 @@ def get_config(args=None):
                         help="Setting this as true, a graph laplacian based on topological features will be calculated"
                              "and used for the node embeddings")
     # Policy parameters
-    parser.add_argument('--features_dim', type=int, default=128, help="Embedding length")
+    parser.add_argument('--features_dim', type=int, default=64, help="Embedding length")
     parser.add_argument('--node_encoder', type=str, default='CAPAM',
                         help='Node embedding type. Available ones are [CAPAM, AM, MLP]')
     parser.add_argument('--K', type=int, default=1, help='K value for CAPAM')
@@ -37,7 +37,7 @@ def get_config(args=None):
 
     # training algorithm parameters
     parser.add_argument('--total_steps', type=int, default=2000000, help='Total number of steps')
-    parser.add_argument('--batch_size', type=int, default=10000, help='Batch size for training')
+    parser.add_argument('--batch_size', type=int, default=5000, help='Batch size for training')
     parser.add_argument('--n_steps', type=int, default=20000, help='Number of steps for rollout')
     parser.add_argument('--learning_rate', type=float, default=0.000001, help='Learning rate')
     parser.add_argument('--ent_coef', type=float, default=0.0001, help='Entropy coefficient')
