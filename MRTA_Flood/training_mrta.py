@@ -22,7 +22,7 @@ def as_tensor(observation):
     return observation
 
 config = get_config()
-test = True  # if this is set as true, then make sure the test data is generated.
+test = False  # if this is set as true, then make sure the test data is generated.
 # Otherwise, run the test_env_generator script
 config.device = torch.device("cuda:0" if config.use_cuda else "cpu")
 env = DummyVecEnv([lambda: MRTA_Flood_Env(

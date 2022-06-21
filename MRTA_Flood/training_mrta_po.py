@@ -38,7 +38,7 @@ def as_tensor(observation):
 
 
 config = get_config()
-test = True  # if this is set as true, then make sure the test data is generated.
+test = False  # if this is set as true, then make sure the test data is generated.
 # Otherwise, run the test_env_generator script
 
 env = DummyVecEnv([lambda: MRTA_Flood_PO_Env(
