@@ -173,8 +173,8 @@ class GraphCapsule(nn.Module):
         L = data['L'].to(device=X.device)
         return {"L": L,
                 "embeddings":
-                    self.activ(self.W_F(torch.cat([self.conv[p-1]({"embeddings": X**p, "L": L}) for p in range(1, self.P+1)],
-                                       dim=-1)))
+                    self.W_F(torch.cat([self.conv[p-1]({"embeddings": X**p, "L": L}) for p in range(1, self.P+1)],
+                                       dim=-1))
                 }
 
 
