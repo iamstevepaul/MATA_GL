@@ -21,7 +21,7 @@ for problem_type in problem_types:
     robot_test_multipliers = [0.5,1,2]
     for loc_mult in loc_test_multipliers:
         for rob_mult in robot_test_multipliers:
-            n_robots_test = int(rob_mult*loc_mult*trained_model_n_robots)
+            n_robots_test = int(rob_mult*loc_mult*trained_model_n_robots) + 1
             n_loc_test = int(trained_model_n_loc*loc_mult)
 
             env_list = []

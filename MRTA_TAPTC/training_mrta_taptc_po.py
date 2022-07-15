@@ -20,14 +20,14 @@ import torch
 # import ot
 from CustomPolicies import ActorCriticGCAPSPolicy
 # from stable_baselines_al.common.utils import set_random_seed
-from training_config import get_config
+from training_config_PO import get_config
 
 from stable_baselines_al.common.vec_env import DummyVecEnv, SubprocVecEnv
 
 warnings.filterwarnings('ignore')
 torch.cuda.empty_cache()
 config = get_config()
-
+config.device = torch.device("cuda:0" if config.use_cuda else "cpu")
 env = DummyVecEnv([lambda: MRTA_TAPTC_Env(
         n_locations = config.n_locations,
         n_agents = config.n_robots,
@@ -56,6 +56,7 @@ policy_kwargs=dict(
         mask_logits=config.mask_logits,
         temp=config.temp
     ),
+    device=config.device
     # activation_fn=torch.nn.LeakyReLU,
     # net_arch=[dict(vf=[128,128])]
 )
@@ -83,6 +84,25 @@ if config.node_encoder == "CAPAM" or config.node_encoder == "MLP":
                          + "_K_" + str(config.K) \
                          + "_P_" + str(config.P) + "_Le_" + str(config.Le) \
                          + "_h_" + str(config.features_dim)
+elif config.node_encoder == "AM":
+    tb_logger_location = config.logger + config.problem \
+                         + "/" + config.node_encoder + "/" \
+                         + config.problem \
+                         + "_nloc_" + str(config.n_locations) \
+                         + "_nrob_" + str(config.n_robots) + "_" + task_type + "_" \
+                         + config.node_encoder \
+                         + "_n_heads_" + str(config.n_heads) \
+                         + "_Le_" + str(config.Le) \
+                         + "_h_" + str(config.features_dim)
+    save_model_loc = config.model_save + config.problem \
+                     + "/" + config.node_encoder + "/" \
+                     + config.problem \
+                     + "_nloc_" + str(config.n_locations) \
+                     + "_nrob_" + str(config.n_robots) + "_" + task_type + "_" \
+                     + config.node_encoder \
+                     + "_n_heads_" + str(config.n_heads) \
+                     + "_Le_" + str(config.Le) \
+                     + "_h_" + str(config.features_dim)
 model = PPO(
     ActorCriticGCAPSPolicy,
     env,

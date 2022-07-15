@@ -28,8 +28,6 @@ from stable_baselines_al.common.distributions import (
     StateDependentNoiseDistribution,
     make_proba_distribution,
 )
-from stable_baselines_al.common.utils import get_device, is_vectorized_observation, obs_as_tensor
-from Feature_Extractors import GCAPCNFeatureExtractor, CAPAM, MLP
 
 #   TODO:
 #   Make the policy network task independent
@@ -73,26 +71,28 @@ class AttentionModelFixed(NamedTuple):
 
 class ActorCriticGCAPSPolicy(BasePolicy):
 
-    def __init__(self,
-        observation_space: gym.spaces.Space,
-        action_space: gym.spaces.Space,
-        lr_schedule: Schedule,
-        net_arch: Optional[List[Union[int, Dict[str, List[int]]]]] = None,
-        activation_fn: Type[th.nn.Module] = th.nn.Tanh,
-        ortho_init: bool = True,
-        use_sde: bool = False,
-        log_std_init: float = 0.0,
-        full_std: bool = True,
-        sde_net_arch: Optional[List[int]] = None,
-        use_expln: bool = False,
-        squash_output: bool = False,
-        features_extractor_class: Type[BaseFeaturesExtractor] = FlattenExtractor,
-        features_extractor_kwargs: Optional[Dict[str, Any]] = None,
-        optimizer_class: Type[th.optim.Optimizer] = th.optim.Adam,
-        optimizer_kwargs: Optional[Dict[str, Any]] = None,
-        device: Union[th.device, str] = "auto"
-                 ):
-        super(ActorCriticGCAPSPolicy, self).__init__(observation_space,
+    def __init__(
+            self,
+            observation_space: gym.spaces.Space,
+            action_space: gym.spaces.Space,
+            lr_schedule: Schedule,
+            net_arch: Optional[List[Union[int, Dict[str, List[int]]]]] = None,
+            activation_fn: Type[th.nn.Module] = th.nn.Tanh,
+            ortho_init: bool = True,
+            use_sde: bool = False,
+            log_std_init: float = 0.0,
+            full_std: bool = True,
+            sde_net_arch: Optional[List[int]] = None,
+            use_expln: bool = False,
+            squash_output: bool = False,
+            features_extractor_class: Type[BaseFeaturesExtractor] = FlattenExtractor,
+            features_extractor_kwargs: Optional[Dict[str, Any]] = None,
+            optimizer_class: Type[th.optim.Optimizer] = th.optim.Adam,
+            optimizer_kwargs: Optional[Dict[str, Any]] = None,
+            device: Union[th.device, str] = "auto"
+            ):
+        super(ActorCriticGCAPSPolicy, self).__init__(
+            observation_space,
             action_space,
             features_extractor_class,
             features_extractor_kwargs,
@@ -108,22 +108,33 @@ class ActorCriticGCAPSPolicy(BasePolicy):
         value_net_net = [th.nn.Linear(features_dim, features_dim, bias=False),th.nn.Linear(features_dim, 1, bias=False)]
         self.value_net = th.nn.Sequential(*value_net_net).to(device=device)
         if features_extractor_kwargs['feature_extractor'] == "CAPAM":
-            self.features_extractor = CAPAM(
+            from Feature_Extractors import CAPAM_P
+            self.features_extractor = CAPAM_P(
                 node_dim=node_dim,
                 features_dim=features_dim,
                 K=features_extractor_kwargs['K'],
                 Le = features_extractor_kwargs['Le'],
-                P=features_extractor_kwargs['P']
+                P=features_extractor_kwargs['P'],
+                device=device
             ).to(device=device)
         elif features_extractor_kwargs['feature_extractor'] == "MLP":
+            from Feature_Extractors import MLP
             inter_dim = features_dim * (features_extractor_kwargs['K'] + 1) * features_extractor_kwargs['P']
             self.features_extractor = MLP(
                 node_dim=node_dim,
                 features_dim=features_dim,
-                inter_dim=inter_dim
+                inter_dim=inter_dim,
+                device=device
             ).to(device=device)
         elif features_extractor_kwargs['feature_extractor'] == "AM":
-            pass # need to add AM here
+            from Feature_Extractors import GraphAttentionEncoder
+            self.features_extractor = GraphAttentionEncoder(
+                node_dim=node_dim,
+                n_heads=features_extractor_kwargs['n_heads'],
+                embed_dim=features_dim,
+                n_layers=features_extractor_kwargs['Le'],
+                device=device
+            ).to(device=device)
         self.agent_decision_context = th.nn.Linear(agent_node_dim,features_dim).to(device=device)
         self.agent_context = th.nn.Linear(agent_node_dim,features_dim).to(device=device)
         self.full_context_nn = th.nn.Linear(2*features_dim, features_dim).to(device=device)

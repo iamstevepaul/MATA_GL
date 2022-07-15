@@ -82,7 +82,7 @@ class ActorCriticGCAPSPolicy(BasePolicy):
                  features_extractor_kwargs: Optional[Dict[str, Any]] = None,
                  optimizer_class: Type[th.optim.Optimizer] = th.optim.Adam,
                  optimizer_kwargs: Optional[Dict[str, Any]] = None,
-                 device: Union[th.device, str] = "auto"
+                 device: Union[th.device, str] = "cpu"
                  ):
         super(ActorCriticGCAPSPolicy, self).__init__(observation_space,
                                                      action_space,
@@ -161,7 +161,7 @@ class ActorCriticGCAPSPolicy(BasePolicy):
 
 
     def forward(self, obs, deterministic=False,  *args, **kwargs):
-        torch.cuda.reset_max_memory_allocated(device=None)
+        # torch.cuda.reset_max_memory_allocated(device=None)
 
         # latent_pi, latent_vf, latent_sde = self._get_latent(obs)
         # distribution = self._get_action_dist_from_latent(latent_pi, latent_sde=latent_sde)

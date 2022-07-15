@@ -23,7 +23,7 @@ def as_tensor(observation):
     return observation
 
 config = get_config()
-test = False  # if this is set as true, then make sure the test data is generated.
+test = True  # if this is set as true, then make sure the test data is generated.
 # Otherwise, run the test_env_generator script
 config.device = torch.device("cuda:0" if config.use_cuda else "cpu")
 env = DummyVecEnv([lambda: MRTA_Flood_Env(
@@ -115,10 +115,11 @@ model = PPO(
     vf_coef=config.val_coef,
     device=config.device
 )
-model.learn(total_timesteps=config.total_steps)
+if not test:
+    model.learn(total_timesteps=config.total_steps)
 
-obs = env.reset()
-model.save(save_model_loc)
+    obs = env.reset()
+    model.save(save_model_loc)
 if test:
     model = PPO.load(save_model_loc, env=env)
 
@@ -129,7 +130,7 @@ if test:
     path =  "Test_data/" + config.problem + "/"
     for loc_mult in loc_test_multipliers:
         for rob_mult in robot_test_multipliers:
-            n_robots_test = int(rob_mult*loc_mult*trained_model_n_robots)
+            n_robots_test = int(rob_mult*loc_mult*trained_model_n_robots) + 1
             n_loc_test = int(trained_model_n_loc*loc_mult)
 
             env = DummyVecEnv([lambda: MRTA_Flood_Env(

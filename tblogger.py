@@ -8,7 +8,7 @@ from tensorboard import program
 # tb.configure(argv=['--logdir', "PPO_1"])
 # tb.main()
 
-tracking_address = "logger/MRTA_PO" # the path of your log file.
+tracking_address = "tensorboard_logger/For_paper" # the path of your log file.
 
 if __name__ == "__main__":
     tb = program.TensorBoard()

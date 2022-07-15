@@ -30,7 +30,7 @@ class MLP(nn.Module):
     def forward(self, data, mask=None):
         X = data['task_graph_nodes']
         F0 = self.init_embed(X)
-        F0 = self.activ(self.self.layer_1(F0))
+        F0 = self.activ(self.layer_1(F0))
         F0 = self.activ(self.WF(F0))
         init_depot_embed = self.init_embed_depot(data['depot'])[:]
         h = torch.cat((init_depot_embed, F0), 1)
@@ -132,7 +132,7 @@ class CAPAM_P(nn.Module):
         self.init_embed = nn.Linear(node_dim, features_dim).to(device=device)
         self.init_embed_depot = nn.Linear(2, features_dim).to(device=device)
         self.device = device
-        graph_capsule_layers = [GraphCapsule(P=P, K=K, features_dim=features_dim, device=device) for le in range(Le)]
+        graph_capsule_layers = [GraphCapsule(P=P, K=K, features_dim=features_dim, device=device) for _ in range(Le)]
         self.graph_capsule_layers = nn.Sequential(*graph_capsule_layers).to(device=device)
         self.activ = nn.Tanh()
 
@@ -164,17 +164,37 @@ class GraphCapsule(nn.Module):
         super(GraphCapsule, self).__init__()
         self.features_dim = features_dim
         self.P = P
-        self.conv = [Conv(P=P, K=K, features_dim=features_dim, device=device) for p in range(P)]
-        self.W_F = nn.Linear(features_dim * P, features_dim).to(device=device)
+        if P == 1:
+            self.conv1 = Conv(P=P, K=K, features_dim=features_dim, device=device)
+        elif P == 2:
+            self.conv1 = Conv(P=P, K=K, features_dim=features_dim, device=device)
+            self.conv2 = Conv(P=P, K=K, features_dim=features_dim, device=device)
+        elif P == 3:
+            self.conv1 = Conv(P=P, K=K, features_dim=features_dim, device=device)
+            self.conv2 = Conv(P=P, K=K, features_dim=features_dim, device=device)
+            self.conv3 = Conv(P=P, K=K, features_dim=features_dim, device=device)
+
+        # self.conv = [Conv(P=P, K=K, features_dim=features_dim, device=device) for _ in range(P)]
+        self.W_F = nn.Linear(features_dim * P*(K+1), features_dim).to(device=device)
         self.activ = nn.Tanh()
 
     def forward(self, data):
         X = data["embeddings"]
         L = data['L'].to(device=X.device)
+        # torch.cat([self.conv[p - 1]({"embeddings": X ** p, "L": L}) for p in range(1, self.P + 1)],
+        #           dim=-1)
+        if self.P == 1:
+            capsule_func =  self.conv1({"embeddings": X ** 1, "L": L})
+        elif self.P == 2:
+            capsule_func = torch.cat((self.conv1({"embeddings": X ** 1, "L": L}),
+                                      self.conv2({"embeddings": X ** 2, "L": L})), dim=-1)
+        elif self.P == 3:
+            capsule_func = torch.cat((self.conv1({"embeddings": X ** 1, "L": L}),
+                                      self.conv2({"embeddings": X ** 2, "L": L}),
+                                      self.conv3({"embeddings": X ** 3, "L": L})), dim=-1)
         return {"L": L,
                 "embeddings":
-                    self.W_F(torch.cat([self.conv[p-1]({"embeddings": X**p, "L": L}) for p in range(1, self.P+1)],
-                                       dim=-1))
+                    self.activ(self.W_F(capsule_func))
                 }
 
 
@@ -188,13 +208,13 @@ class Conv(nn.Module):
         super(Conv, self).__init__()
         self.features_dim = features_dim
         self.K = K
-        self.W = nn.Linear(features_dim * (K + 1), features_dim).to(device=device)
+        # self.W = nn.Linear(features_dim * (K + 1)*P, features_dim).to(device=device)
         self.activ = nn.Tanh()
 
     def forward(self, data):
         X = data["embeddings"]
         L = data["L"].to(device=X.device)
-        return self.activ(self.W(torch.cat([torch.matmul(L**i, X) for i in range(self.K+1)], dim=-1)))
+        return torch.cat([torch.matmul(L**i, X) for i in range(self.K+1)], dim=-1)
 
 
 class GCAPCNFeatureExtractor(nn.Module):

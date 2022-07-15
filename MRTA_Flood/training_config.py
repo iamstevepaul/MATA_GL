@@ -27,9 +27,9 @@ def get_config(args=None):
     parser.add_argument('--features_dim', type=int, default=128, help="Embedding length")
     parser.add_argument('--node_encoder', type=str, default='CAPAM',
                         help='Node embedding type. Available ones are [CAPAM, AM, MLP]')
-    parser.add_argument('--K', type=int, default=1, help='K value for CAPAM')
+    parser.add_argument('--K', type=int, default=3, help='K value for AM')
     parser.add_argument('--Le', type=int, default=2, help='Le value for CAPAM')
-    parser.add_argument('--P', type=int, default=2, help='P value for CAPAM')
+    parser.add_argument('--P', type=int, default=3, help='P value for CAPAM')
     parser.add_argument('--n_heads', type=int, default=8, help='Number of attention heads')
     parser.add_argument('--tanh_clipping', type=float, default=10, help='tanh clipping for logits')
     parser.add_argument('--mask_logits', type=bool, default=True, help='Masking enabled')
@@ -38,9 +38,9 @@ def get_config(args=None):
     # training algorithm parameters
     parser.add_argument('--total_steps', type=int, default=2000000, help='Total number of steps')
     parser.add_argument('--batch_size', type=int, default=4000, help='Batch size for training')
-    parser.add_argument('--n_steps', type=int, default=60000, help='Number of steps for rollout')
+    parser.add_argument('--n_steps', type=int, default=40000, help='Number of steps for rollout')
     parser.add_argument('--learning_rate', type=float, default=0.000001, help='Learning rate')
-    parser.add_argument('--ent_coef', type=float, default=0.0001, help='Entropy coefficient')
+    parser.add_argument('--ent_coef', type=float, default=0.00001, help='Entropy coefficient')
     parser.add_argument('--val_coef', type=float, default=0.5, help='Value coefficient')
     parser.add_argument('--gamma', type=float, default=1.00, help='Discount factor')
     parser.add_argument('--n_epochs', type=int, default=100, help='Number of epochs per rollout')

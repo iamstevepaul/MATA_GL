@@ -383,14 +383,10 @@ class MRTA_TAPTC_Env(Env):
             torch.tensor([self.time])), dim=0)
         self.agents_state_record[self.agent_taking_decision, self.agent_taking_decision] = new_state
 
-
-
-
     def find_closest_dist_time(self, x1,v1,x2,v2):
         # derivative equation for the time at which the closest distance happens given the starting locations and velocity
         delta_t = (-(x2[0] - x1[0])*(v2[0] - v1[0]) -(x2[1] - x1[1])*(v2[1] - v1[1]))/((v2[0] - v1[0])**2 + (v2[1] - v1[1])**2)
         return delta_t
-
 
     def get_mask(self):
 
@@ -399,7 +395,6 @@ class MRTA_TAPTC_Env(Env):
         mask = np.logical_or(mask, (self.deadline_passed.T).numpy()).astype(mask.dtype)
         mask = mask*(self.available_tasks).numpy() # masking unavailable tasks
         return mask
-
 
     def generate_task_graph(self):
 
