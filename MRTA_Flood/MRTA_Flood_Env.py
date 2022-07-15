@@ -388,7 +388,7 @@ class MRTA_Flood_Env(Env):
         # print(next_loc)
         # print("***********")
         for i in range(self.n_agents):
-            plt.arrow(prev_loc[i, 0], prev_loc[i, 1], diff[i, 0], diff[i, 1])
+            plt.arrow(prev_loc[i, 0], prev_loc[i, 1], diff[i, 0]*0.95, diff[i, 1]*0.95, width=0.005)
         plt.draw()
         time.sleep(1)
         plt.show()
