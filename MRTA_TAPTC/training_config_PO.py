@@ -10,10 +10,10 @@ def get_config(args=None):
         description="Graph Neural Network based reinforcement learning solution for MRTA-TAPTC")
     # Environment related
     parser.add_argument('--problem', type=str, default='MRTA_TAPTC_PO', help='Name of the problem')
-    parser.add_argument('--n_locations', type=int, default=50, help="Number of locations (including the depot if any).")
+    parser.add_argument('--n_locations', type=int, default=100, help="Number of locations (including the depot if any).")
     parser.add_argument('--n_initial_tasks', type=int, default=30,
                         help="Number of initial tasks available. Used for problem with dynamic tasks.")
-    parser.add_argument('--n_robots', type=int, default=6, help="Number of robots")
+    parser.add_argument('--n_robots', type=int, default=5, help="Number of robots")
     parser.add_argument('--enable_dynamic_tasks', type=bool, default=False,
                         help="Boolean to enable dynamic tasks. The environment starts with n_initial_tasks, and"
                              "new tasks are introduced based on its start time")
