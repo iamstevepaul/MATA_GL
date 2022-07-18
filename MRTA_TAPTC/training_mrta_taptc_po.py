@@ -19,10 +19,10 @@ import torch
 # from persim import wasserstein, bottleneck
 # import ot
 from CustomPolicies import ActorCriticGCAPSPolicy
-# from stable_baselines_al.common.utils import set_random_seed
+# from stable_baselines3.common.utils import set_random_seed
 from training_config_PO import get_config
 
-from stable_baselines_al.common.vec_env import DummyVecEnv, SubprocVecEnv
+from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 
 warnings.filterwarnings('ignore')
 torch.cuda.empty_cache()

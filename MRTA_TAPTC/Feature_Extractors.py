@@ -143,9 +143,9 @@ class CAPAM_P(nn.Module):
                       (A.sum(-1) - 1)[:, None].expand((num_samples, num_locations, num_locations)))
         F0 = self.init_embed(X)
         L = D - A
-        init_depot_embed = self.init_embed_depot(data['depot'])
+        # init_depot_embed = self.init_embed_depot(data['depot'])
         F = self.graph_capsule_layers({"embeddings": F0, "L": L})["embeddings"]
-        h = torch.cat((init_depot_embed, F), 1)
+        h = F#torch.cat((init_depot_embed, F), 1)
         return (
             h,  # (batch_size, graph_size, embed_dim)
             h.mean(dim=1),  # average to get embedding of graph, (batch_size, embed_dim)

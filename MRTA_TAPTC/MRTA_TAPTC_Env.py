@@ -15,7 +15,6 @@ import torch
 from topology import *
 import scipy.sparse as sp
 from persim import wasserstein, bottleneck
-import ot
 
 
 class MRTA_TAPTC_Env(Env):
