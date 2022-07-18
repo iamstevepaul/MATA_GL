@@ -7,7 +7,7 @@ import warnings
 # import math
 # import numpy as np
 # import gym
-from stable_baselines_al import PPO, A2C
+from stable_baselines3 import PPO, A2C
 # from stable_baselines.common import make_vec_env
 from MRTA_TAPTC_Env import MRTA_TAPTC_Env
 # import json
