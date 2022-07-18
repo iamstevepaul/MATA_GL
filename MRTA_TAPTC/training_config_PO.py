@@ -34,7 +34,7 @@ def get_config(args=None):
 
     # training algorithm parameters
     parser.add_argument('--total_steps', type=int, default=2000000, help='Total number of steps')
-    parser.add_argument('--batch_size', type=int, default=10000, help='Batch size for training')
+    parser.add_argument('--batch_size', type=int, default=2500, help='Batch size for training')
     parser.add_argument('--n_steps', type=int, default=20000, help='Number of steps for rollout')
     parser.add_argument('--learning_rate', type=float, default=0.000001, help='Learning rate')
     parser.add_argument('--ent_coef', type=float, default=0.0001, help='Entropy coefficient')
