@@ -8,6 +8,7 @@ tensorboard_logger
 MRTA_Flood/Test_data/
 MRTA_Flood/Trained_Models/
 MRTA_Flood/Results/
+MRTA_TAPTC/Tensorboard_logger/
 # C extensions
 *.so
 .idea/

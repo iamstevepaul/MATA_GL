@@ -155,21 +155,21 @@ class CAPAM_P(nn.Module):
             h, index = self.data_loader(data, batch_size, index)
             while index < num_samples:
                 h_batch, index = self.data_loader(data, batch_size, index)
-                h = torch.cat((h,h_batch), dim=0)
+                h = torch.cat((h, h_batch), dim=0)
         return (
             h,  # (batch_size, graph_size, embed_dim)
             h.mean(dim=1),  # average to get embedding of graph, (batch_size, embed_dim)
         )
 
     def data_loader(self, data, batch_size, index):
-        X = data['task_graph_nodes'][index:index+batch_size, :,:]
+        X = data['task_graph_nodes'][index:index + batch_size, :, :]
         num_samples, num_locations, _ = X.size()
-        A = data['task_graph_adjacency'][index:index+batch_size, :,:]
+        A = data['task_graph_adjacency'][index:index + batch_size, :, :]
         D = torch.mul(torch.eye(num_locations, device=X.device).expand((num_samples, num_locations, num_locations)),
                       (A.sum(-1) - 1)[:, None].expand((num_samples, num_locations, num_locations)))
         F0 = self.init_embed(X)
         L = D - A
-        init_depot_embed = self.init_embed_depot(data['depot'][index:index+batch_size, :,:])
+        init_depot_embed = self.init_embed_depot(data['depot'][index:index + batch_size, :, :])
         F = self.graph_capsule_layers({"embeddings": F0, "L": L})["embeddings"]
         h = torch.cat((init_depot_embed, F), 1)
         return h, index + batch_size
@@ -194,11 +194,6 @@ class GraphCapsule(nn.Module):
             self.conv1 = Conv(P=P, K=K, features_dim=features_dim, device=device)
             self.conv2 = Conv(P=P, K=K, features_dim=features_dim, device=device)
             self.conv3 = Conv(P=P, K=K, features_dim=features_dim, device=device)
-        elif P == 4:
-            self.conv1 = Conv(P=P, K=K, features_dim=features_dim, device=device)
-            self.conv2 = Conv(P=P, K=K, features_dim=features_dim, device=device)
-            self.conv3 = Conv(P=P, K=K, features_dim=features_dim, device=device)
-            self.conv4 = Conv(P=P, K=K, features_dim=features_dim, device=device)
 
         # self.conv = [Conv(P=P, K=K, features_dim=features_dim, device=device) for _ in range(P)]
         self.W_F = nn.Linear(features_dim * P*(K+1), features_dim).to(device=device)
@@ -218,11 +213,6 @@ class GraphCapsule(nn.Module):
             capsule_func = torch.cat((self.conv1({"embeddings": X ** 1, "L": L}),
                                       self.conv2({"embeddings": X ** 2, "L": L}),
                                       self.conv3({"embeddings": X ** 3, "L": L})), dim=-1)
-        elif self.P == 4:
-            capsule_func = torch.cat((self.conv1({"embeddings": X ** 1, "L": L}),
-                                      self.conv2({"embeddings": X ** 2, "L": L}),
-                                      self.conv3({"embeddings": X ** 3, "L": L}),
-                                      self.conv4({"embeddings": X ** 3, "L": L})), dim=-1)
         return {"L": L,
                 "embeddings":
                     self.activ(self.W_F(capsule_func))

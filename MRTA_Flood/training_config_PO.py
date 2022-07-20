@@ -28,7 +28,7 @@ def get_config(args=None):
                         help='Max distance for information exchange between robots')
     # Policy parameters
     parser.add_argument('--features_dim', type=int, default=128, help="Embedding length")
-    parser.add_argument('--node_encoder', type=str, default='AM',
+    parser.add_argument('--node_encoder', type=str, default='CAPAM',
                         help='Node embedding type. Available ones are [CAPAM, AM, MLP]')
     parser.add_argument('--K', type=int, default=3, help='K value for CAPAM')
     parser.add_argument('--Le', type=int, default=2, help='Le value for CAPAM')

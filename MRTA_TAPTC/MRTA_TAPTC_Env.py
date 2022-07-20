@@ -57,7 +57,7 @@ class MRTA_TAPTC_Env(Env):
 
         self.robot_work_capacity = torch.randint(1, 3, (self.n_agents, 1), dtype=torch.float).view(-1) / 100
         self.task_workload = torch.ones((self.n_locations, 1))*.2
-        self.time_deadlines = (torch.tensor(np.random.random((1, n_locations)))*.3 + .7)*200
+        self.time_deadlines = (torch.tensor(np.random.random((1, n_locations))) * .7 + .3) * 550
         self.task_done = torch.zeros((1, n_locations), dtype=torch.float32)
         self.deadline_passed = torch.zeros((1, n_locations), dtype=torch.float32)
         self.available_tasks = torch.zeros((n_locations, 1), dtype=torch.float32)
@@ -90,8 +90,8 @@ class MRTA_TAPTC_Env(Env):
                 dict(
                     mask=Box(low=0, high=1, shape=self.nodes_visited.shape),
                     topo_laplacian=Box(low=0, high=1, shape=(n_locations,n_locations)),
-                    task_graph_nodes=Box(low=0, high=1, shape=(n_locations - 1, 5)),
-                    agents_graph_nodes=Box(low=0, high=1, shape=(n_agents, 5)),
+                    task_graph_nodes=Box(low=0, high=1, shape=(n_locations - 1, self.task_graph_node_dim)),
+                    agents_graph_nodes=Box(low=0, high=1, shape=(n_agents, self.agent_node_dim)),
                     agent_taking_decision=Box(low=0, high=n_agents, shape=(1,), dtype=int),
                 ))
             self.topo_laplacian = None
@@ -103,9 +103,9 @@ class MRTA_TAPTC_Env(Env):
             self.observation_space = Dict(
                 dict(
                     mask=Box(low=0, high=1, shape=self.nodes_visited.shape),
-                    task_graph_nodes=Box(low=0, high=1, shape=(n_locations,5)),
+                    task_graph_nodes=Box(low=0, high=1, shape=(n_locations,self.task_graph_node_dim)),
                     task_graph_adjacency=Box(low=0, high=1, shape=(n_locations, n_locations)),
-                    agents_graph_nodes=Box(low=0, high=1, shape=(n_agents, 5)),
+                    agents_graph_nodes=Box(low=0, high=1, shape=(n_agents, self.agent_node_dim)),
                     agent_taking_decision=Box(low=0, high=n_agents, shape=(1,), dtype=int),
                 ))
         self.distance = 0.0
@@ -454,7 +454,7 @@ class MRTA_TAPTC_Env(Env):
         self.total_length = 0
         self.robot_work_capacity = torch.randint(1, 3, (self.n_agents, 1), dtype=torch.float).view(-1) / 100
         self.task_workload = torch.ones((self.n_locations, 1))*.2
-        self.time_deadlines = (torch.tensor(np.random.random((1, self.n_locations))) * .3 + .7) * 200
+        self.time_deadlines = (torch.tensor(np.random.random((1, self.n_locations))) * .7 + .3) * 550
         self.time_deadlines[0, 0] = 1000000 # large number for depot,
         self.task_done = torch.zeros((1, self.n_locations), dtype=torch.float32)
         self.deadline_passed = torch.zeros((1, self.n_locations), dtype=torch.float32)

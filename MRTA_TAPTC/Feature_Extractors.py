@@ -138,18 +138,37 @@ class CAPAM_P(nn.Module):
     def forward(self, data):
         X = data['task_graph_nodes']
         num_samples, num_locations, _ = X.size()
-        A = data['task_graph_adjacency']
-        D = torch.mul(torch.eye(num_locations, device=X.device).expand((num_samples, num_locations, num_locations)),
-                      (A.sum(-1) - 1)[:, None].expand((num_samples, num_locations, num_locations)))
-        F0 = self.init_embed(X)
-        L = D - A
-        # init_depot_embed = self.init_embed_depot(data['depot'])
-        F = self.graph_capsule_layers({"embeddings": F0, "L": L})["embeddings"]
-        h = F#torch.cat((init_depot_embed, F), 1)
+        if num_samples == 1:
+            A = data['task_graph_adjacency']
+            D = torch.mul(torch.eye(num_locations, device=X.device).expand((num_samples, num_locations, num_locations)),
+                          (A.sum(-1) - 1)[:, None].expand((num_samples, num_locations, num_locations)))
+            F0 = self.init_embed(X)
+            L = D - A
+            F = self.graph_capsule_layers({"embeddings": F0, "L": L})["embeddings"]
+            h = F#torch.cat((init_depot_embed, F), 1)
+        else:
+            index = 0
+            batch_size = 2000
+            h, index = self.data_loader(data, batch_size, index)
+            while index < num_samples:
+                h_batch, index = self.data_loader(data, batch_size, index)
+                h = torch.cat((h, h_batch), dim=0)
         return (
             h,  # (batch_size, graph_size, embed_dim)
             h.mean(dim=1),  # average to get embedding of graph, (batch_size, embed_dim)
         )
+
+    def data_loader(self, data, batch_size, index):
+        X = data['task_graph_nodes'][index:index + batch_size, :, :]
+        num_samples, num_locations, _ = X.size()
+        A = data['task_graph_adjacency'][index:index + batch_size, :, :]
+        D = torch.mul(torch.eye(num_locations, device=X.device).expand((num_samples, num_locations, num_locations)),
+                      (A.sum(-1) - 1)[:, None].expand((num_samples, num_locations, num_locations)))
+        F0 = self.init_embed(X)
+        L = D - A
+        F = self.graph_capsule_layers({"embeddings": F0, "L": L})["embeddings"]
+        h = F#torch.cat((init_depot_embed, F), 1)
+        return h, index + batch_size
 
 
 class GraphCapsule(nn.Module):

@@ -118,9 +118,9 @@ class MRTA_Flood_PO_Env(Env):
                     #                                                            self.agent_taking_decision, :].reshape(1,
                     #                                                                                                   2).shape),
                     topo_laplacian=Box(low=0, high=1, shape=(n_locations-1,n_locations-1)),
-                    task_graph_nodes=Box(low=0, high=1, shape=(n_locations - 1, 5)),
+                    task_graph_nodes=Box(low=0, high=1, shape=(n_locations - 1, self.task_graph_node_dim)),
                     # task_graph_adjacency=Box(low=0, high=1, shape=(n_locations - 1, n_locations - 1)),
-                    agents_graph_nodes=Box(low=0, high=1, shape=(n_agents, 6)),
+                    agents_graph_nodes=Box(low=0, high=1, shape=(n_agents, self.agent_node_dim)),
                     # agents_graph_adjacency=Box(low=0, high=1, shape=(n_agents, n_agents)),
                     # nodes_visited=Box(low=0, high=1, shape=self.nodes_visited.shape),
                     agent_taking_decision=Box(low=0, high=n_agents, shape=(1,), dtype=int),
@@ -143,9 +143,9 @@ class MRTA_Flood_PO_Env(Env):
                     #                                                            self.agent_taking_decision, :].reshape(1,
                     #                                                                                                   2).shape),
                     # topo_laplacian=Box(low=0, high=100000, shape=(n_locations-1,n_locations-1)),
-                    task_graph_nodes=Box(low=0, high=1, shape=(n_locations-1,5)),
+                    task_graph_nodes=Box(low=0, high=1, shape=(n_locations-1,self.task_graph_node_dim)),
                     task_graph_adjacency=Box(low=0, high=1, shape=(n_locations-1, n_locations-1)),
-                    agents_graph_nodes=Box(low=0, high=1, shape=(n_agents, 6)),
+                    agents_graph_nodes=Box(low=0, high=1, shape=(n_agents, self.agent_node_dim)),
                     # agents_graph_adjacency=Box(low=0, high=1, shape=(n_agents, n_agents)),
                     # nodes_visited=Box(low=0, high=1, shape=self.nodes_visited.shape),
                     agent_taking_decision=Box(low=0, high=n_agents, shape=(1,), dtype=int),
@@ -426,6 +426,7 @@ class MRTA_Flood_PO_Env(Env):
                     # dt = prev_time
                     x1_new = self.agents_previous_recorded_coordinates[i]
                     x2_new = self.agents_previous_recorded_coordinates[j]
+
                 elif dt > prev_time and dt <= self.time:
                     x1_new = x1 + v1*(dt - prev_time)
                     x2_new = x2 + v2*(dt - prev_time)
@@ -433,7 +434,6 @@ class MRTA_Flood_PO_Env(Env):
                     # dt = self.time
                     x1_new = self.agents_current_coordinates[i]
                     x2_new = self.agents_current_coordinates[j]
-
 
                 min_distance = np.linalg.norm(x2_new - x1_new)
 
@@ -661,7 +661,6 @@ class MRTA_Flood_PO_Env(Env):
             self.agents_velocity = torch.zeros((self.n_agents, 1), dtype=torch.float32)
 
             self.agents_record_nodes_visited = torch.zeros((self.n_agents, self.n_locations, 1), dtype=torch.float32)
-
 
             self.conflicts_count = 0
         state = self.get_encoded_state()
