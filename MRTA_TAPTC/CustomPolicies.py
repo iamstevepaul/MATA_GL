@@ -168,6 +168,7 @@ class ActorCriticGCAPSPolicy(BasePolicy):
 
 
     def forward(self, obs, deterministic=False,  *args, **kwargs):
+        torch.cuda.reset_max_memory_allocated(device=None)
 
         # latent_pi, latent_vf, latent_sde = self._get_latent(obs)
         # distribution = self._get_action_dist_from_latent(latent_pi, latent_sde=latent_sde)
