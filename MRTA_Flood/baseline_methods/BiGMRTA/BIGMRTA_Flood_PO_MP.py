@@ -289,9 +289,12 @@ if __name__ == "__main__":
                 "total_tasks_done": total_tasks_done_array,
                 "total_rewards": total_rewards_array,
             }
-            result_path = "../../Results/" + problem + "/"
+            result_path = output_dir+"/" + problem
 
-            result_file = result_path + problem + "_PO" + "_nloc_" + str(n_loc_test) \
+            if not os.path.isdir(result_path):
+                os.makedirs(result_path)
+
+            result_file = result_path+ "/" + problem + "_PO" + "_nloc_" + str(n_loc_test) \
                           + "_nrob_" + str(n_robots_test) + "_" + task_type + "_" + "BIGMRTA"
             mode = 0o755
             # if not os.path.exists(result_path):
