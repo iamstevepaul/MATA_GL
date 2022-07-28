@@ -38,7 +38,7 @@ conda activate /projects/academic/soumacho/steve/conda_envs/jsp
 #conda install -p /home/stevepau tqdm
 #conda activate tqdm
 CUDA_VISIBLE_DEVICES=0,1
-python BIGMRTA_Flood_PO_MP.py
+python BIGMRTA_Flood_Constrained_Communication.py
 
 echo "***********************************************************************"
 
